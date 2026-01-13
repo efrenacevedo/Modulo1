@@ -1,11 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
-
-/* =========================
-El css de los componentes esta incrustado en los mismos por simplicidad.
-Pero se puede cambiar a index.css si es que gustan
-======================= */
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 /* =========================
    CONSTANTES
@@ -35,13 +32,29 @@ const compareValues = (a, b) => {
   return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' });
 };
 
+// 🔥 Generar variaciones de color
+const shadeColor = (color, percent) => {
+  let num = parseInt(color.replace("#", ""), 16),
+    amt = Math.round(2.55 * percent),
+    R = (num >> 16) + amt,
+    G = (num >> 8 & 0x00FF) + amt,
+    B = (num & 0x0000FF) + amt;
+
+  return "#" + (
+    0x1000000 +
+    (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255)
+  ).toString(16).slice(1);
+};
+
 /* =========================
-   COMPONENTE
+   COMPONENTE PRINCIPAL
 =========================*/
 const ExcelManager = () => {
   const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [vista, setVista] = useState("tabla"); // tabla | horario | profesores | grupos
+  const [vista, setVista] = useState("tabla");
   const [sortConfig, setSortConfig] = useState(null);
 
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -54,8 +67,8 @@ const ExcelManager = () => {
     if (!file) return;
 
     setLoading(true);
-
     const reader = new FileReader();
+
     reader.onload = (event) => {
       const workbook = XLSX.read(event.target.result, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -135,7 +148,6 @@ const ExcelManager = () => {
 
   const datosOrdenados = useMemo(() => {
     if (!sortConfig) return datos;
-
     return [...datos].sort((a, b) => {
       const res = compareValues(a[sortConfig.key], b[sortConfig.key]);
       return sortConfig.direction === 'asc' ? res : -res;
@@ -182,39 +194,92 @@ const ExcelManager = () => {
   }, [datos]);
 
   /* =========================
-     COMPONENTE HORARIO
+     DESCARGA PDF
   ==========================*/
-  const Calendario = ({ titulo, bloques }) => (
-    <div style={{ marginBottom: 40 }}>
+const exportPDF = (titulo, idElemento) => {
+  const input = document.getElementById(idElemento);
+  if (!input) return;
+
+  html2canvas(input, { scale: 2 }).then((canvas) => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('landscape', 'pt', 'a4'); // Horizontal
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    // Escalar la imagen para que quepa completamente en una sola página
+    const scale = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+    const imgWidth = canvas.width * scale;
+    const imgHeight = canvas.height * scale;
+
+    const x = (pdfWidth - imgWidth) / 2;
+    const y = (pdfHeight - imgHeight) / 2;
+
+    pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+    pdf.save(`${titulo}.pdf`);
+  });
+};
+
+
+  // Descargar todos los PDFs de profesores
+  const exportAllProfesores = () => {
+    Object.entries(calendarioProfesores).forEach(([p, _]) => {
+      exportPDF(`Profesor-${p.replace(/\s+/g,'-')}`, `profesor-${p.replace(/\s+/g,'-')}`);
+    });
+  };
+
+  // Descargar todos los PDFs de grupos
+  const exportAllGrupos = () => {
+    Object.entries(calendarioGrupos).forEach(([g, _]) => {
+      exportPDF(`Grupo-${g.replace(/\s+/g,'-')}`, `grupo-${g.replace(/\s+/g,'-')}`);
+    });
+  };
+
+  /* =========================
+     COMPONENTE CALENDARIO
+  ==========================*/
+  const Calendario = ({ titulo, bloques, id }) => (
+    <div id={id} style={{ marginBottom: 40 }}>
       <h2>{titulo}</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
-        {DIAS.map(d => (
-          <div key={d} style={{
-            background: DIA_COLOR[d],
-            color: 'white',
-            padding: 12,
-            borderRadius: 12
-          }}>
-            <strong>{d}</strong>
-            {bloques
-              .filter(b => b.dia === d)
-              .sort((a, b) => a.inicio - b.inicio)
-              .map((b, i) => (
-                <div key={i} style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  borderRadius: 8,
-                  padding: 8,
-                  marginTop: 6
-                }}>
-                  <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
-                  {b.materia}<br />
-                  {b.aula}<br />
-                  {b.profesor || b.grupo}
-                </div>
-              ))}
-          </div>
-        ))}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, alignItems: 'start' }}>
+        {DIAS.map(d => {
+          const bloquesDia = bloques
+            .filter(b => b.dia === d)
+            .sort((a, b) => a.inicio - b.inicio);
+
+          return (
+            <div key={d} style={{
+              background: isDark ? '#111827' : '#f3f4f6',
+              padding: 12,
+              borderRadius: 12
+            }}>
+              <strong style={{ color: DIA_COLOR[d] }}>{d}</strong>
+
+              {bloquesDia.map((b, i) => {
+                const intensidad = -20 + (i * (40 / Math.max(bloquesDia.length, 1)));
+                const colorBloque = shadeColor(DIA_COLOR[d], intensidad);
+
+                return (
+                  <div key={i} style={{
+                    background: colorBloque,
+                    color: 'white',
+                    borderRadius: 8,
+                    padding: 8,
+                    marginTop: 6
+                  }}>
+                    <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
+                    {b.materia}<br />
+                    {b.aula}<br />
+                    {b.profesor || b.grupo}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
+
+      <button style={{ marginTop: 10 }} onClick={() => exportPDF(titulo, id)}>Descargar PDF</button>
     </div>
   );
 
@@ -246,23 +311,13 @@ const ExcelManager = () => {
         </div>
       )}
 
-      {/* TABLA */}
       {vista === "tabla" && datos.length > 0 && (
         <div style={{ marginTop: 20, overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'separate',
-            borderRadius: 12,
-            overflow: 'hidden'
-          }}>
+          <table style={{ width: '100%' }}>
             <thead>
               <tr>
                 {columnas.map(c => (
-                  <th
-                    key={c}
-                    onClick={() => requestSort(c)}
-                    style={{ padding: 12, cursor: 'pointer', background: '#1f2937', color: 'white' }}
-                  >
+                  <th key={c} onClick={() => requestSort(c)}>
                     {c}
                     {sortConfig?.key === c &&
                       (sortConfig.direction === 'asc' ? <ArrowUp size={14}/> : <ArrowDown size={14}/>)}
@@ -274,7 +329,7 @@ const ExcelManager = () => {
               {datosOrdenados.map((fila, i) => (
                 <tr key={i}>
                   {columnas.map(c => (
-                    <td key={c} style={{ padding: 10, borderBottom: '1px solid #e5e7eb' }}>
+                    <td key={c}>
                       {c === "AulaAsignada" && Array.isArray(fila[c])
                         ? fila[c].map((b, idx) => (
                             <div key={idx}>
@@ -292,24 +347,41 @@ const ExcelManager = () => {
         </div>
       )}
 
-      {/* HORARIO GENERAL */}
-      {vista === "horario" && (
-        <Calendario titulo="Horario General" bloques={datos.flatMap(m => m.AulaAsignada || [])} />
+      {vista === "horario" &&
+        <Calendario
+          id="horario-general"
+          titulo="Horario General"
+          bloques={datos.flatMap(m => m.AulaAsignada || [])}
+        />
+      }
+
+      {vista === "profesores" && (
+        <>
+          <button onClick={exportAllProfesores}>Descargar todos PDFs Profesores</button>
+          {Object.entries(calendarioProfesores).map(([p, b]) =>
+            <Calendario
+              key={p}
+              id={`profesor-${p.replace(/\s+/g, '-')}`}
+              titulo={`Profesor: ${p}`}
+              bloques={b}
+            />
+          )}
+        </>
       )}
 
-      {/* PROFESORES */}
-      {vista === "profesores" &&
-        Object.entries(calendarioProfesores).map(([p, b]) =>
-          <Calendario key={p} titulo={`Profesor: ${p}`} bloques={b} />
-        )
-      }
-
-      {/* GRUPOS */}
-      {vista === "grupos" &&
-        Object.entries(calendarioGrupos).map(([g, b]) =>
-          <Calendario key={g} titulo={`Grupo: ${g}`} bloques={b} />
-        )
-      }
+      {vista === "grupos" && (
+        <>
+          <button onClick={exportAllGrupos}>Descargar todos PDFs Grupos</button>
+          {Object.entries(calendarioGrupos).map(([g, b]) =>
+            <Calendario
+              key={g}
+              id={`grupo-${g.replace(/\s+/g, '-')}`}
+              titulo={`Grupo: ${g}`}
+              bloques={b}
+            />
+          )}
+        </>
+      )}
 
       <style>{`
         .spin { animation: spin 1s linear infinite; }
