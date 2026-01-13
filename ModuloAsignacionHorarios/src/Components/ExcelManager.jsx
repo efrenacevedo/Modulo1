@@ -41,7 +41,7 @@ const compareValues = (a, b) => {
 const ExcelManager = () => {
   const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [vistaHorario, setVistaHorario] = useState(false);
+  const [vista, setVista] = useState("tabla"); // tabla | horario | profesores | grupos
   const [sortConfig, setSortConfig] = useState(null);
 
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -147,34 +147,74 @@ const ExcelManager = () => {
   , [datos]);
 
   /* =========================
-     VISTA HORARIO
+     CALENDARIOS
   ==========================*/
-  const HorarioSemanal = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(5, 1fr)`, gap: 16 }}>
-      {DIAS.map(dia => (
-        <div key={dia} style={{
-          background: DIA_COLOR[dia],
-          borderRadius: 12,
-          padding: 12,
-          color: 'white'
-        }}>
-          <h3 style={{ textAlign: 'center' }}>{dia}</h3>
-          {datosOrdenados.flatMap(m =>
-            (m.AulaAsignada || []).filter(a => a.dia === dia).map((a, i) => (
-              <div key={i} style={{
-                background: 'rgba(255,255,255,0.2)',
-                borderRadius: 8,
-                padding: 8,
-                marginBottom: 6
-              }}>
-                <strong>{a.aula}</strong><br />
-                {formatHora(a.inicio)} – {formatHora(a.fin)}<br />
-                <small>{m["Nombre de la asignatura"]}</small>
-              </div>
-            ))
-          )}
-        </div>
-      ))}
+  const calendarioProfesores = useMemo(() => {
+    const map = {};
+    datos.forEach(m => {
+      (m.AulaAsignada || []).forEach(h => {
+        const prof = m["Nombre del profesor"];
+        if (!map[prof]) map[prof] = [];
+        map[prof].push({
+          ...h,
+          materia: m["Nombre de la asignatura"],
+          grupo: `Sem ${m.Semestre} G${m.Grupo}`
+        });
+      });
+    });
+    return map;
+  }, [datos]);
+
+  const calendarioGrupos = useMemo(() => {
+    const map = {};
+    datos.forEach(m => {
+      const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
+      if (!map[key]) map[key] = [];
+      (m.AulaAsignada || []).forEach(h => {
+        map[key].push({
+          ...h,
+          materia: m["Nombre de la asignatura"],
+          profesor: m["Nombre del profesor"]
+        });
+      });
+    });
+    return map;
+  }, [datos]);
+
+  /* =========================
+     COMPONENTE HORARIO
+  ==========================*/
+  const Calendario = ({ titulo, bloques }) => (
+    <div style={{ marginBottom: 40 }}>
+      <h2>{titulo}</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+        {DIAS.map(d => (
+          <div key={d} style={{
+            background: DIA_COLOR[d],
+            color: 'white',
+            padding: 12,
+            borderRadius: 12
+          }}>
+            <strong>{d}</strong>
+            {bloques
+              .filter(b => b.dia === d)
+              .sort((a, b) => a.inicio - b.inicio)
+              .map((b, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: 8,
+                  padding: 8,
+                  marginTop: 6
+                }}>
+                  <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
+                  {b.materia}<br />
+                  {b.aula}<br />
+                  {b.profesor || b.grupo}
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 
@@ -197,84 +237,79 @@ const ExcelManager = () => {
       </div>
 
       {datos.length > 0 && (
-        <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
+        <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={asignarAulas}>Asignar aulas</button>
-          <button onClick={() => setVistaHorario(!vistaHorario)}>
-            {vistaHorario ? "Ver tabla" : "Ver horario"}
-          </button>
+          <button onClick={() => setVista("tabla")}>Tabla</button>
+          <button onClick={() => setVista("horario")}>Horario general</button>
+          <button onClick={() => setVista("profesores")}>Profesores</button>
+          <button onClick={() => setVista("grupos")}>Grupos</button>
         </div>
       )}
 
-      {datos.length > 0 && (
+      {/* TABLA */}
+      {vista === "tabla" && datos.length > 0 && (
         <div style={{ marginTop: 20, overflowX: 'auto' }}>
-          {vistaHorario ? (
-            <HorarioSemanal />
-          ) : (
-            <table style={{
-              width: '100%',
-              borderCollapse: 'separate',
-              borderSpacing: 0,
-              background: isDark ? '#111827' : 'white',
-              borderRadius: 12,
-              overflow: 'hidden'
-            }}>
-              <thead>
-                <tr>
+          <table style={{
+            width: '100%',
+            borderCollapse: 'separate',
+            borderRadius: 12,
+            overflow: 'hidden'
+          }}>
+            <thead>
+              <tr>
+                {columnas.map(c => (
+                  <th
+                    key={c}
+                    onClick={() => requestSort(c)}
+                    style={{ padding: 12, cursor: 'pointer', background: '#1f2937', color: 'white' }}
+                  >
+                    {c}
+                    {sortConfig?.key === c &&
+                      (sortConfig.direction === 'asc' ? <ArrowUp size={14}/> : <ArrowDown size={14}/>)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {datosOrdenados.map((fila, i) => (
+                <tr key={i}>
                   {columnas.map(c => (
-                    <th
-                      key={c}
-                      onClick={() => requestSort(c)}
-                      style={{
-                        padding: 12,
-                        cursor: 'pointer',
-                        background: '#1f2937',
-                        color: 'white',
-                        position: 'sticky',
-                        top: 0
-                      }}
-                    >
-                      {c}
-                      {sortConfig?.key === c &&
-                        (sortConfig.direction === 'asc' ? <ArrowUp size={14}/> : <ArrowDown size={14}/>)}
-                    </th>
+                    <td key={c} style={{ padding: 10, borderBottom: '1px solid #e5e7eb' }}>
+                      {c === "AulaAsignada" && Array.isArray(fila[c])
+                        ? fila[c].map((b, idx) => (
+                            <div key={idx}>
+                              {b.dia} {b.aula} {formatHora(b.inicio)}–{formatHora(b.fin)}
+                            </div>
+                          ))
+                        : fila[c]
+                      }
+                    </td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {datosOrdenados.map((fila, i) => (
-                  <tr key={i} style={{ transition: 'background .2s' }}>
-                    {columnas.map(c => (
-                      <td key={c} style={{
-                        padding: 10,
-                        borderBottom: '1px solid #e5e7eb',
-                        verticalAlign: 'top'
-                      }}>
-                        {c === "AulaAsignada" && Array.isArray(fila[c])
-                          ? DIAS.map(d => {
-                              const bloques = fila[c].filter(a => a.dia === d);
-                              if (!bloques.length) return null;
-                              return (
-                                <div key={d}>
-                                  <strong>{d}</strong>
-                                  {bloques.map((b, idx) => (
-                                    <div key={idx}>
-                                      {b.aula} {formatHora(b.inicio)} – {formatHora(b.fin)}
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })
-                          : fila[c]
-                        }
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
+
+      {/* HORARIO GENERAL */}
+      {vista === "horario" && (
+        <Calendario titulo="Horario General" bloques={datos.flatMap(m => m.AulaAsignada || [])} />
+      )}
+
+      {/* PROFESORES */}
+      {vista === "profesores" &&
+        Object.entries(calendarioProfesores).map(([p, b]) =>
+          <Calendario key={p} titulo={`Profesor: ${p}`} bloques={b} />
+        )
+      }
+
+      {/* GRUPOS */}
+      {vista === "grupos" &&
+        Object.entries(calendarioGrupos).map(([g, b]) =>
+          <Calendario key={g} titulo={`Grupo: ${g}`} bloques={b} />
+        )
+      }
 
       <style>{`
         .spin { animation: spin 1s linear infinite; }
