@@ -71,7 +71,7 @@ const Navbar = () => {
       item.addEventListener("click", () => setActiveItem(item));
     });
 
-    // 🔥 Activar según la ruta actual
+  
     const activeIndex = NAV_ITEMS.findIndex(
       (i) => i.path === location.pathname
     );
