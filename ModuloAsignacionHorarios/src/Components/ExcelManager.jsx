@@ -3,6 +3,11 @@ import * as XLSX from 'xlsx';
 import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 
 /* =========================
+El css de los componentes esta incrustado en los mismos por simplicidad.
+Pero se puede cambiar a index.css si es que gustan
+======================= */
+
+/* =========================
    CONSTANTES
 =========================*/
 const DIAS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
