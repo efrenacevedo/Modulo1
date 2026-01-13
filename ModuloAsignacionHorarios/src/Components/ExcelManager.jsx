@@ -279,7 +279,7 @@ const exportPDF = (titulo, idElemento) => {
         })}
       </div>
 
-      <button style={{ marginTop: 10 }} onClick={() => exportPDF(titulo, id)}>Descargar PDF</button>
+      <button className='custom-btn btn-5' onClick={() => exportPDF(titulo, id)}>Descargar PDF</button>
     </div>
   );
 
@@ -357,7 +357,7 @@ const exportPDF = (titulo, idElemento) => {
 
       {vista === "profesores" && (
         <>
-          <button onClick={exportAllProfesores}>Descargar todos PDFs Profesores</button>
+          <button onClick={exportAllProfesores} className='custom-btn btn-5'>Descargar todos PDFs Profesores</button>
           {Object.entries(calendarioProfesores).map(([p, b]) =>
             <Calendario
               key={p}
@@ -371,7 +371,8 @@ const exportPDF = (titulo, idElemento) => {
 
       {vista === "grupos" && (
         <>
-          <button onClick={exportAllGrupos}>Descargar todos PDFs Grupos</button>
+
+          <button onClick={exportAllGrupos} className='custom-btn btn-5'>Descargar todos PDFs Grupos</button>
           {Object.entries(calendarioGrupos).map(([g, b]) =>
             <Calendario
               key={g}
