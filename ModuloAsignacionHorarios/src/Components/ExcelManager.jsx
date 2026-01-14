@@ -58,6 +58,14 @@ const ExcelManager = () => {
   const [sortConfig, setSortConfig] = useState(null);
 
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const tableColors = {
+  bg: isDark ? '#111827' : '#ffffff',
+  bgAlt: isDark ? '#1f2937' : '#f9fafb',
+  text: isDark ? '#f9fafb' : '#111827',
+  border: isDark ? '#374151' : '#e5e7eb',
+  card: isDark ? '#1f2937' : '#eef2ff'
+};
+
 
   /* =========================
      CARGA EXCEL
@@ -241,7 +249,7 @@ const exportPDF = (titulo, idElemento) => {
     <div id={id} style={{ marginBottom: 40 }}>
       <h2>{titulo}</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, alignItems: 'start' }}>
+      <div className="calendar-grid" style={{ gap: 16, alignItems: 'start' }}>
         {DIAS.map(d => {
           const bloquesDia = bloques
             .filter(b => b.dia === d)
@@ -311,38 +319,73 @@ const exportPDF = (titulo, idElemento) => {
         </div>
       )}
 
-      {vista === "tabla" && datos.length > 0 && (
-        <div style={{ marginTop: 20, overflowX: 'auto' }}>
-          <table style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                {columnas.map(c => (
-                  <th key={c} onClick={() => requestSort(c)}>
-                    {c}
-                    {sortConfig?.key === c &&
-                      (sortConfig.direction === 'asc' ? <ArrowUp size={14}/> : <ArrowDown size={14}/>)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {datosOrdenados.map((fila, i) => (
-                <tr key={i}>
-                  {columnas.map(c => (
-                    <td key={c}>
-                      {c === "AulaAsignada" && Array.isArray(fila[c])
-                        ? fila[c].map((b, idx) => (
-                            <div key={idx}>
-                              {b.dia} {b.aula} {formatHora(b.inicio)}–{formatHora(b.fin)}
-                            </div>
-                          ))
-                        : fila[c]
-                      }
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+     {vista === "tabla" && datos.length > 0 && (
+  <div
+    className="table-wrapper"
+    style={{
+    marginTop: 20,
+    overflowX: 'auto',
+    border: `1px solid ${tableColors.border}`,
+    borderRadius: 12,
+    background: tableColors.bg,
+    boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+    }}
+  >
+   <table
+  style={{
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: 14,
+    color: tableColors.text
+  }}
+>
+
+<tbody>
+  {datosOrdenados.map((fila, i) => (
+    <tr
+      key={i}
+      style={{
+    borderBottom: `1px solid ${tableColors.border}`,
+    background: i % 2 === 0 ? tableColors.bg : tableColors.bgAlt
+  }}
+    >
+      {columnas.map(c => (
+        <td
+          key={c}
+           style={{
+    padding: '10px',
+    verticalAlign: 'top',
+    whiteSpace: 'nowrap',
+    color: tableColors.text
+  }}
+        >
+          {c === "AulaAsignada" && Array.isArray(fila[c])
+            ? fila[c].map((b, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: 6,
+                    padding: 6,
+                    borderRadius: 6,
+                    background: tableColors.card,
+                    fontSize: 13,
+                    color: tableColors.text
+
+                  }}
+                >
+                  <strong>{b.dia}</strong><br />
+                  {b.aula}<br />
+                  {formatHora(b.inicio)} – {formatHora(b.fin)}
+                </div>
+              ))
+            : fila[c]
+          }
+        </td>
+      ))}
+    </tr>
+  ))}
+</tbody>
+
           </table>
         </div>
       )}
@@ -385,9 +428,95 @@ const exportPDF = (titulo, idElemento) => {
       )}
 
       <style>{`
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* =======================
+     RESPONSIVE GLOBAL
+  ======================= */
+
+  .container {
+    padding: 40px;
+  }
+
+  /* Botones */
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Tabla */
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  /* Calendario */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: start;
+  }
+
+  /* =======================
+     TABLET (≤ 1024px)
+  ======================= */
+  @media (max-width: 1024px) {
+    .calendar-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* =======================
+     MOBILE (≤ 768px)
+  ======================= */
+  @media (max-width: 768px) {
+
+    .container {
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 22px;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .responsive-table {
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 8px !important;
+    }
+
+    .calendar-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* =======================
+     EXTRA SMALL (≤ 480px)
+  ======================= */
+  @media (max-width: 480px) {
+
+    .action-buttons {
+      grid-template-columns: 1fr;
+    }
+
+    h2 {
+      font-size: 18px;
+    }
+
+    button {
+      width: 100%;
+    }
+
+  }
+`}</style>
     </div>
   );
 };
