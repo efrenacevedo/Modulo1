@@ -21,7 +21,6 @@ function App() {
     <Router>
       {/* */}
       <Navbar />
-
       <Routes>
         <Route path="/" element={<Inicio />} />
         <Route path="/cargadatos" element={<ExcelManager />} />
