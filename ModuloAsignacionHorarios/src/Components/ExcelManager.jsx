@@ -8,7 +8,18 @@ import html2canvas from 'html2canvas';
    CONSTANTES
 =========================*/
 const DIAS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
-const AULAS = Array.from({ length: 10 }, (_, i) => `Aula ${i + 1}`);
+
+// ✅ AGREGADO: edificios
+const EDIFICIOS = ["B", "C", "D", "E"];
+
+// ✅ AGREGADO: aulas con edificio (NO reemplaza AULAS)
+const AULAS_EXTENDIDAS = EDIFICIOS.flatMap(edificios =>
+  Array.from({ length: 11 }, (_, i) => ({
+    edificios,
+    aula: `Aula ${i + 1}`
+  }))
+);
+
 
 const DIA_COLOR = {
   Lunes: "#3b82f6",
@@ -99,41 +110,64 @@ const ExcelManager = () => {
   };
 
   /* =========================
-     ASIGNAR AULAS
-  ==========================*/
-  const asignarAulas = () => {
-    const edificio = {};
-    DIAS.forEach(d => edificio[d] = {});
+   ASIGNAR AULAS
+=========================*/
+const asignarAulas = () => {
+  // Creamos un objeto por día y por aula en cada edificio
+  const edificio = {};
+  DIAS.forEach(d => {
+    edificio[d] = {};
+    EDIFICIOS.forEach(ed => {
+      for (let i = 1; i <= 11; i++) {
+        const key = `${ed}-Aula ${i}`;
+        edificio[d][key] = [];
+      }
+    });
+  });
 
-    const ordenadas = [...datos].sort((a, b) =>
-      Math.min(...a.Horario.map(h => h.inicio)) -
-      Math.min(...b.Horario.map(h => h.inicio))
-    );
+  // Ordenamos las materias por inicio de horario
+  const ordenadas = [...datos].sort((a, b) =>
+    Math.min(...a.Horario.map(h => h.inicio)) -
+    Math.min(...b.Horario.map(h => h.inicio))
+  );
 
-    const resultado = ordenadas.map(materia => {
-      const asignaciones = [];
+  const resultado = ordenadas.map(materia => {
+    const asignaciones = [];
 
-      materia.Horario.forEach(h => {
-        for (let aula of AULAS) {
-          if (!edificio[h.dia][aula]) edificio[h.dia][aula] = [];
+    materia.Horario.forEach(h => {
+      let asignado = false;
 
-          const choque = edificio[h.dia][aula].some(b =>
+      // Recorremos todos los edificios y aulas
+      for (let ed of EDIFICIOS) {
+        if (asignado) break;
+
+        for (let i = 1; i <= 11; i++) {
+          const key = `${ed}-Aula ${i}`;
+          const ocupados = edificio[h.dia][key];
+
+          const choque = ocupados.some(b =>
             !(h.fin <= b.inicio || h.inicio >= b.fin)
           );
 
           if (!choque) {
-            edificio[h.dia][aula].push(h);
-            asignaciones.push({ ...h, aula });
-            break;
+            edificio[h.dia][key].push(h);
+            asignaciones.push({ ...h, aula: key });
+            asignado = true;
+            break; // Sale de este edificio solo si asignó
           }
         }
-      });
+      }
 
-      return { ...materia, AulaAsignada: asignaciones };
+      if (!asignado) {
+        asignaciones.push({ ...h, aula: "Sin aula disponible" });
+      }
     });
 
-    setDatos(resultado);
-  };
+    return { ...materia, AulaAsignada: asignaciones };
+  });
+
+  setDatos(resultado);
+};
 
   /* =========================
      ORDENAMIENTO
@@ -269,6 +303,7 @@ const exportPDF = (titulo, idElemento) => {
                   }}>
                     <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
                     {b.materia}<br />
+                    {b.edificio}<br />
                     {b.aula}<br />
                     {b.profesor || b.grupo}
                   </div>
@@ -333,7 +368,7 @@ const exportPDF = (titulo, idElemento) => {
                       {c === "AulaAsignada" && Array.isArray(fila[c])
                         ? fila[c].map((b, idx) => (
                             <div key={idx}>
-                              {b.dia} {b.aula} {formatHora(b.inicio)}–{formatHora(b.fin)}
+                              {b.dia} {b.edificio} {b.aula} {formatHora(b.inicio)}–{formatHora(b.fin)}
                             </div>
                           ))
                         : fila[c]
