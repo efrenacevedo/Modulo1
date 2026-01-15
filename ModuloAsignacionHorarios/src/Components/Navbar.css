@@ -11,22 +11,34 @@ html, body {
   font-family: "Poppins", sans-serif;
 }
 
-nav {
-	position: fixed;
-	top: 20px;                
-	left: 50%;               
-	transform: translateX(-50%);
-	width: fit-content;
-	padding: 0 30px;
-	border-radius: 16px;
-	background: rgba(255, 255, 255, 0.5);
-	overflow: hidden;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	box-shadow: 
-		0 8px 32px rgba(0, 0, 0, 0.1),
-		0 4px 16px rgba(0, 0, 0, 0.05);
-	z-index: 1000;            
+
+header {
+  width: 100%;
+  pointer-events: none;
 }
+
+
+nav {
+  position: relative;       /* 🔥 CLAVE */
+  top: 16px;             /* distancia real desde arriba */
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: fit-content;
+  padding: 0 30px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  overflow: visible;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+
+  z-index: 1000;
+  pointer-events: auto;
+}
+
 
 
 nav::before {
@@ -96,5 +108,16 @@ nav > ul li a {
 nav > ul li a:hover,
 nav > ul li a.active {
   transform: translateY(-2px);
+  color: #000;
+}
+
+.burger-icon {
+  width: 22px;
+  height: 22px;
+}
+.burger-icon {
+  color: #1a1a1a;
+}
+nav > ul li a.active .burger-icon {
   color: #000;
 }

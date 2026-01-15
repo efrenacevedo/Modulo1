@@ -1,61 +1,79 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import ModalMenu from "./ModalMenu";
+
+
+
 import "./Navbar.css";
 
 const NAV_ITEMS = [
   { label: "Inicio", path: "/" },
-  { label: "Carga de Datos", path: "/cargadatos" }
+  { label: "Carga de Datos", path: "/cargadatos" },
+  {
+    modal: true,
+    icon: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    )
+  }
 ];
+
 
 const Navbar = () => {
   const navRef = useRef(null);
   const itemsRef = useRef([]);
   const location = useLocation();
+  const [openMenu, setOpenMenu] = useState(false);
 
+  /* ---------------- Animación del indicador ---------------- */
   useEffect(() => {
     const nav = navRef.current;
     const items = itemsRef.current;
     let anim = null;
     let currentActiveItem = null;
+    const ul = nav;
 
     const animate = (from, to) => {
       if (anim) clearInterval(anim);
-
       const start = Date.now();
+
       anim = setInterval(() => {
         const p = Math.min((Date.now() - start) / 500, 1);
         const e = 1 - Math.pow(1 - p, 3);
 
-        const x = from + (to - from) * e;
-        const y = -40 * (4 * e * (1 - e));
-        const r = 200 * Math.sin(p * Math.PI);
-
-        nav.style.setProperty("--translate-x", `${x}px`);
-        nav.style.setProperty("--translate-y", `${y}px`);
-        nav.style.setProperty("--rotate-x", `${r}deg`);
+        nav.style.setProperty("--translate-x", `${from + (to - from) * e}px`);
+        nav.style.setProperty("--translate-y", `${-40 * (4 * e * (1 - e))}px`);
+        nav.style.setProperty("--rotate-x", `${200 * Math.sin(p * Math.PI)}deg`);
 
         if (p >= 1) {
           clearInterval(anim);
-          anim = null;
           nav.style.setProperty("--translate-y", "0px");
           nav.style.setProperty("--rotate-x", "0deg");
         }
       }, 16);
     };
 
-    const getCurrentPosition = () =>
-      parseFloat(nav.style.getPropertyValue("--translate-x")) || 0;
-
     const getItemCenter = (item) =>
       item.getBoundingClientRect().left +
       item.offsetWidth / 2 -
-      nav.getBoundingClientRect().left -
-      5;
+      nav.getBoundingClientRect().left - 5;
 
     const moveToItem = (item) => {
-      const current = getCurrentPosition();
-      const center = getItemCenter(item);
-      animate(current, center);
+      animate(
+        parseFloat(nav.style.getPropertyValue("--translate-x")) || 0,
+        getItemCenter(item)
+      );
       nav.classList.add("show-indicator");
     };
 
@@ -71,12 +89,11 @@ const Navbar = () => {
       item.addEventListener("click", () => setActiveItem(item));
     });
 
-  
-    const activeIndex = NAV_ITEMS.findIndex(
+    const index = NAV_ITEMS.findIndex(
       (i) => i.path === location.pathname
     );
-    if (activeIndex >= 0 && items[activeIndex]) {
-      setTimeout(() => setActiveItem(items[activeIndex]), 100);
+    if (index >= 0 && items[index]) {
+      setTimeout(() => setActiveItem(items[index]), 100);
     }
 
     return () => {
@@ -84,43 +101,61 @@ const Navbar = () => {
     };
   }, [location.pathname]);
 
+  /* ---------------- Cerrar menú hamburguesa al click fuera ---------------- */
+  useEffect(() => {
+    if (!openMenu) return;
+
+    const close = () => setOpenMenu(false);
+    window.addEventListener("click", close);
+
+    return () => window.removeEventListener("click", close);
+  }, [openMenu]);
+
   return (
     <>
       <header>
         <nav>
           <ul ref={navRef}>
             {NAV_ITEMS.map((item, i) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  ref={(el) => (itemsRef.current[i] = el)}
-                >
-                  {item.label}
-                </Link>
+              <li key={i}>
+                {item.modal ? (
+                  <a
+                    href="#"
+                    ref={(el) => (itemsRef.current[i] = el)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenMenu((prev) => !prev);
+                    }}
+                    className="hamburger-btn"
+                  >
+                    {item.icon ?? item.label}
+                  </a>
+                ) : (
+                  <Link
+                    to={item.path}
+                    ref={(el) => (itemsRef.current[i] = el)}
+                  >
+                    {item.label}
+                  </Link>
+                )}
+
               </li>
             ))}
           </ul>
+          {openMenu && <ModalMenu />}
         </nav>
       </header>
 
-      {/* SVG del filtro */}
+      
+
+      {/* SVG filtro */}
       <svg style={{ display: "none" }}>
         <defs>
           <filter id="wave-distort">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.0038 0.0038"
-              numOctaves="1"
-              seed="2"
-              result="roughNoise"
-            />
-            <feGaussianBlur in="roughNoise" stdDeviation="8.5" />
-            <feDisplacementMap
-              in="SourceGraphic"
-              scale="-42"
-              xChannelSelector="G"
-              yChannelSelector="G"
-            />
+            <feTurbulence baseFrequency="0.0038" numOctaves="1" />
+            <feGaussianBlur stdDeviation="8.5" />
+            <feDisplacementMap scale="-42" />
           </filter>
         </defs>
       </svg>
