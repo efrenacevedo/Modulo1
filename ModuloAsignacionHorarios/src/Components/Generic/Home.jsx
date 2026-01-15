@@ -6,6 +6,9 @@ import "swiper/css";
 import "swiper/css/effect-cube";
 import "./home.css";
 
+import garza from "../../assets/garza.png";
+
+
 export default function Home() {
   useEffect(() => {
     // Nada aquí porque Swiper ya se inicializa con React
@@ -14,15 +17,17 @@ export default function Home() {
   return (
     <section className="home-section">
       {}
-      <div className="background" />
-
-      <div className="content">
-        <h1>Universidad Autónoma del Estado de Hidalgo</h1>
-        <p>
+    
+   <div className="title-wrapper">
+  <div
+    className="title-garza"
+    style={{ backgroundImage: `url(${garza})` }}
+  />
+  <h1>Universidad Autónoma del Estado de Hidalgo</h1>
+  <p>
           La Escuela Superior Tepeji es creada como parte del proceso de desconcentración de los programas educativos de la Universidad Autónoma del Estado de Hidalgo, a fin de atender las demandas regionales y dar respuesta a las necesidades económicas, sociales y educativas de la región.
         </p>
-        <button>Quienes somos</button>
-      </div>
+</div>
 
       <Swiper
         effect="cube"

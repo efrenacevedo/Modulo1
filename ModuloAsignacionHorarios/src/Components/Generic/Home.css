@@ -25,6 +25,9 @@ body {
   background-size: cover;
 }
 
+/* =========================
+   LAYOUT GENERAL
+========================= */
 section {
   display: flex;
   grid-template-columns: 50% 45%;
@@ -34,13 +37,44 @@ section {
   padding: 20px 60px;
 }
 
-/* CONTENT */
+.home-section {
+  position: relative;
+  overflow: hidden;
+}
 
+/* =========================
+   CONTENT
+========================= */
 .content {
   max-width: 2400px;
 }
 
-.content h1 {
+/* CONTENEDOR DEL TÍTULO */
+.title-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* GARZA DETRÁS DEL TEXTO */
+.title-garza {
+  position: absolute;
+  top: -90px;
+  left: -120px;
+  width: 560px;      /* ⬅️ MÁS GRANDE */
+  height: 560px;     /* ⬅️ MÁS GRANDE */
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* TEXTO ENCIMA */
+.title-wrapper h1 {
+  position: relative;
+  z-index: 1;
   font-family: "Comfortaa", sans-serif;
   font-size: clamp(2rem, 4vw, 3.5rem);
   font-weight: 700;
@@ -64,10 +98,8 @@ section {
   font-size: clamp(0.9rem, 4vw, 1rem);
   font-weight: 600;
   border: 0;
-  outline: 0;
   padding: 8px 14px;
   border-radius: 7px;
-  transform: scale(1);
   transition: all 0.4s ease-in;
   cursor: pointer;
 }
@@ -78,8 +110,9 @@ section {
   color: #eaeaea;
 }
 
-/* SLIDER */
-
+/* =========================
+   SLIDER
+========================= */
 .swiper {
   position: relative;
   width: 400px;
@@ -91,6 +124,7 @@ section {
   border: 1px solid rgba(255, 255, 255, 0.3);
   user-select: none;
   border-radius: 20px;
+  overflow: hidden;
 }
 
 .cost {
@@ -99,8 +133,6 @@ section {
   right: 6px;
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
   border-radius: 30px;
   padding: 6px 10px;
   color: #fff;
@@ -115,22 +147,19 @@ section {
 .swiper-slide img {
   width: 100%;
   height: 100%;
+  object-fit: cover;
   border-radius: 20px;
+  display: block;
 }
 
 .overlay {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  left: 0;
   bottom: 0;
   width: 100%;
   height: 150px;
   padding: 10px 20px;
   background: rgba(93, 95, 145, 0.2);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255, 255, 255, 0.3);
   color: #fff;
   border-radius: 0 0 20px 20px;
@@ -147,43 +176,9 @@ section {
   line-height: 1.3;
 }
 
-.ratings {
-  display: flex;
-  column-gap: 10px;
-  margin-top: -6px;
-}
-
-.ratings span {
-  font-size: clamp(0.8rem, 4vw, 0.9rem);
-  font-weight: 300;
-}
-
-.star {
-  color: #afe312;
-}
-
-.logo {
-  position: fixed;
-  right: -20px;
-  bottom: -30px;
-  z-index: 10;
-}
-
-.logo img {
-  width: 120px;
-}
-
-@media (max-width: 890px) {
-  .logo {
-  right: -10px;
-  bottom: -20px;
-}
-  
- .logo img {
-  width: 80px;
-  }
-}
-
+/* =========================
+   RESPONSIVE
+========================= */
 @media (max-width: 1050px) {
   .swiper {
     width: 350px;
@@ -194,26 +189,20 @@ section {
 @media (max-width: 930px) {
   section {
     grid-template-columns: 100%;
-    grid-template-rows: 55% 40%;
-    grid-template-areas:
-      "slider"
-      "content";
-    place-items: center;
     gap: 64px;
     padding: 60px;
   }
 
-  .swiper {
-    grid-area: slider;
-  }
-
   .content {
-    grid-area: content;
     text-align: center;
   }
 
-  .content h1 {
-    margin-bottom: 20px;
+  .title-garza {
+    width: 300px;
+    height: 300px;
+    top: -40px;
+    left: -40px;
+    opacity: 0.12;
   }
 }
 
@@ -225,5 +214,13 @@ section {
   .swiper {
     width: 300px;
     height: 400px;
+  }
+
+  .title-garza {
+    width: 220px;
+    height: 220px;
+    top: -30px;
+    left: -20px;
+    opacity: 0.1;
   }
 }
