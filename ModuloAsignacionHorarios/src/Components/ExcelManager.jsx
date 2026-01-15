@@ -196,26 +196,110 @@ const ExcelManager = () => {
   /* =========================
      DESCARGA PDF
   ==========================*/
-const exportPDF = (titulo, idElemento) => {
+const exportPDF = (titulo, idElemento, grupo, semestre) => {
   const input = document.getElementById(idElemento);
   if (!input) return;
 
+  input.classList.add('exportando-pdf');
+
   html2canvas(input, { scale: 2 }).then((canvas) => {
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('landscape', 'pt', 'a4'); // Horizontal
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const pdf = new jsPDF('landscape', 'pt', 'a4');
 
-    // Escalar la imagen para que quepa completamente en una sola página
-    const scale = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    /* ===============================
+       ENCABEZADO
+    =============================== */
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(22);
+    pdf.text('HORARIO ESCOLAR', pageWidth / 2, 40, { align: 'center' });
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Grupo: ${grupo}`, 40, 75);
+    pdf.text(`Semestre: ${semestre}`, pageWidth - 200, 75);
+
+    // Línea separadora
+    pdf.setLineWidth(1);
+    pdf.line(40, 90, pageWidth - 40, 90);
+
+    /* ===============================
+       IMAGEN DEL HORARIO
+    =============================== */
+
+    const maxWidth = pageWidth - 80;
+    const maxHeight = pageHeight - 150;
+
+    const scale = Math.min(
+      maxWidth / canvas.width,
+      maxHeight / canvas.height
+    );
+
     const imgWidth = canvas.width * scale;
     const imgHeight = canvas.height * scale;
 
-    const x = (pdfWidth - imgWidth) / 2;
-    const y = (pdfHeight - imgHeight) / 2;
+    const x = (pageWidth - imgWidth) / 2;
+    const y = 110;
 
     pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+
+    /* ===============================
+       PIE DE PÁGINA
+    =============================== */
+
+    pdf.setFontSize(10);
+    pdf.text(
+      `Generado el ${new Date().toLocaleDateString()}`,
+      pageWidth - 40,
+      pageHeight - 20,
+      { align: 'right' }
+    );
+
+    /* ===============================
+   FIRMA DEL RESPONSABLE
+=============================== */
+
+const firmaY = pageHeight - 60;
+
+const firmaOffsetX = -120; // 👈 ajusta este valor a tu gusto
+const firmaCenterX = pageWidth / 2 + firmaOffsetX;
+
+pdf.setFontSize(12);
+pdf.setFont('helvetica', 'normal');
+
+// Texto superior
+pdf.text(
+  'Firma del responsable',
+  firmaCenterX,
+  firmaY - 20,
+  { align: 'center' }
+);
+
+// Línea de firma
+pdf.setLineWidth(1);
+pdf.line(
+  firmaCenterX - 150,
+  firmaY,
+  firmaCenterX + 150,
+  firmaY
+);
+
+// Texto inferior
+pdf.setFontSize(10);
+pdf.text(
+  'Nombre y firma',
+  firmaCenterX,
+  firmaY + 15,
+  { align: 'center' }
+);
+
+
     pdf.save(`${titulo}.pdf`);
+
+    input.classList.remove('exportando-pdf');
   });
 };
 
@@ -237,7 +321,7 @@ const exportPDF = (titulo, idElemento) => {
   /* =========================
      COMPONENTE CALENDARIO
   ==========================*/
-  const Calendario = ({ titulo, bloques, id }) => (
+  const Calendario = ({ titulo, bloques, id, grupo, semestre }) => (
     <div id={id} style={{ marginBottom: 40 }}>
       <h2>{titulo}</h2>
 
@@ -279,7 +363,13 @@ const exportPDF = (titulo, idElemento) => {
         })}
       </div>
 
-      <button  onClick={() => exportPDF(titulo, id)}>Descargar PDF</button>
+      <button
+  className="no-pdf"
+  onClick={() => exportPDF(titulo, id, grupo, semestre)}
+>
+  Descargar PDF
+</button>
+
     </div>
   );
 
@@ -373,21 +463,41 @@ const exportPDF = (titulo, idElemento) => {
         <>
 
           <button onClick={exportAllGrupos} >Descargar todos PDFs Grupos</button>
-          {Object.entries(calendarioGrupos).map(([g, b]) =>
-            <Calendario
-              key={g}
-              id={`grupo-${g.replace(/\s+/g, '-')}`}
-              titulo={`Grupo: ${g}`}
-              bloques={b}
-            />
-          )}
+          {Object.entries(calendarioGrupos).map(([g, b]) => {
+  const match = g.match(/Sem\s*(\d+)\s*Grupo\s*(.+)/);
+
+  const semestre = match ? match[1] : '';
+  const grupo = match ? match[2] : '';
+
+  return (
+    <Calendario
+      key={g}
+      id={`grupo-${g.replace(/\s+/g, '-')}`}
+      titulo={`Grupo ${grupo} - Semestre ${semestre}`}
+      bloques={b}
+      grupo={grupo}
+      semestre={semestre}
+    />
+  );
+})}
+
         </>
       )}
 
       <style>{`
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 👇 ESTO ES LO NUEVO */
+  .no-pdf {
+    display: block;
+  }
+
+  .exportando-pdf .no-pdf {
+    display: none;
+  }
+`}</style>
+
     </div>
   );
 };
