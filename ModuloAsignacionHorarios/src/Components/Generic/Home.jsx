@@ -6,6 +6,8 @@ import "swiper/css";
 import "swiper/css/effect-cube";
 import "./home.css";
 
+import garza from "../../assets/garza.png";
+
 export default function Home() {
   useEffect(() => {
     // Nada aquí porque Swiper ya se inicializa con React

@@ -59,6 +59,24 @@ const ExcelManager = () => {
 
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
+    const tableColors = {
+    bg: isDark ? '#111827' : '#ffffff',
+    bgAlt: isDark ? '#1f2937' : '#f9fafb',
+    text: isDark ? '#f9fafb' : '#111827',
+    border: isDark ? '#374151' : '#e5e7eb',
+    card: isDark ? '#1f2937' : '#eef2ff'
+  };
+
+  const tableTheme = {
+  headerBg: isDark ? '#1f2937' : '#f1f5f9',
+  headerText: isDark ? '#f9fafb' : '#111827',
+  rowBg: isDark ? '#111827' : '#ffffff',
+  rowAltBg: isDark ? '#1f2937' : '#f9fafb',
+  border: isDark ? '#374151' : '#e5e7eb',
+  text: isDark ? '#e5e7eb' : '#111827'
+};
+
+
   /* =========================
      CARGA EXCEL
   ==========================*/
@@ -325,8 +343,8 @@ pdf.text(
     <div id={id} style={{ marginBottom: 40 }}>
       <h2>{titulo}</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, alignItems: 'start' }}>
-        {DIAS.map(d => {
+      <div className="calendar-grid">
+          {DIAS.map(d => {
           const bloquesDia = bloques
             .filter(b => b.dia === d)
             .sort((a, b) => a.inicio - b.inicio);
@@ -400,39 +418,106 @@ pdf.text(
           <button onClick={() => setVista("grupos")}>Grupos</button>
         </div>
       )}
+{vista === "tabla" && datos.length > 0 && (
+  <div
+    className="table-wrapper"
+    style={{
+      marginTop: 20,
+      overflowX: 'auto',
+      border: '1px solid #e5e7eb',
+      borderRadius: 12,
+      boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+    }}
+  >
+   <table
+  className="responsive-table"
+  style={{
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: 14,
+    background: tableTheme.rowBg,
+    color: tableTheme.text
+  }}
+>
 
-      {vista === "tabla" && datos.length > 0 && (
-        <div style={{ marginTop: 20, overflowX: 'auto' }}>
-          <table style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                {columnas.map(c => (
-                  <th key={c} onClick={() => requestSort(c)}>
-                    {c}
-                    {sortConfig?.key === c &&
-                      (sortConfig.direction === 'asc' ? <ArrowUp size={14}/> : <ArrowDown size={14}/>)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {datosOrdenados.map((fila, i) => (
-                <tr key={i}>
-                  {columnas.map(c => (
-                    <td key={c}>
-                      {c === "AulaAsignada" && Array.isArray(fila[c])
-                        ? fila[c].map((b, idx) => (
-                            <div key={idx}>
-                              {b.dia} {b.aula} {formatHora(b.inicio)}–{formatHora(b.fin)}
-                            </div>
-                          ))
-                        : fila[c]
-                      }
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+
+          <thead>
+  <tr>
+    {columnas.map(c => (
+  <th
+  key={c}
+  onClick={() => requestSort(c)}
+  style={{
+    padding: '12px 10px',
+    background: tableTheme.headerBg,
+    color: tableTheme.headerText,
+    borderBottom: `2px solid ${tableTheme.border}`,
+    textAlign: 'left',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  }}
+>
+
+        {c}
+        {sortConfig?.key === c &&
+          (sortConfig.direction === 'asc'
+            ? <ArrowUp size={14}/>
+            : <ArrowDown size={14}/>)}
+      </th>
+    ))}
+  </tr>
+</thead>
+    <tbody>
+  {datosOrdenados.map((fila, i) => (
+   <tr
+  key={i}
+  style={{
+    borderBottom: `1px solid ${tableTheme.border}`,
+    background: i % 2 === 0
+      ? tableTheme.rowBg
+      : tableTheme.rowAltBg,
+    color: tableTheme.text
+  }}
+>
+      {columnas.map(c => (
+       <td
+  key={c}
+  data-label={c}
+  style={{
+    padding: '10px',
+    verticalAlign: 'top',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    color: tableTheme.text
+  }}
+>
+
+          {c === "AulaAsignada" && Array.isArray(fila[c])
+            ? fila[c].map((b, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: 6,
+                    padding: 6,
+                    borderRadius: 6,
+                    background: tableColors.card,
+                    fontSize: 13,
+                    color: tableColors.text
+                  }}
+                >
+                  <strong>{b.dia}</strong><br />
+                  {b.aula}<br />
+                  {formatHora(b.inicio)} – {formatHora(b.fin)}
+                </div>
+              ))
+            : fila[c]
+          }
+        </td>
+      ))}
+    </tr>
+  ))}
+</tbody>
+
           </table>
         </div>
       )}
@@ -484,19 +569,124 @@ pdf.text(
         </>
       )}
 
-      <style>{`
+ <style>{`
   .spin { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 👇 ESTO ES LO NUEVO */
-  .no-pdf {
-    display: block;
+  /* =======================
+     RESPONSIVE GLOBAL
+  ======================= */
+
+  .container {
+    padding: 40px;
   }
 
-  .exportando-pdf .no-pdf {
+  /* Botones */
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Tabla */
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  /* Calendario */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: start;
+  }
+
+  /* =======================
+     TABLET (≤ 1024px)
+  ======================= */
+  @media (max-width: 1024px) {
+    .calendar-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* =======================
+     MOBILE (≤ 768px)
+  ======================= */
+  @media (max-width: 768px) {
+
+    .container {
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 22px;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .responsive-table {
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 8px !important;
+    }
+
+    .calendar-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+  .responsive-table thead {
     display: none;
   }
+
+  .responsive-table tr {
+  display: block;
+  margin-bottom: 16px;
+  border: 1px solid var(--table-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--table-row-bg);
+  color: var(--table-text);
+}
+
+  .responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #6b7280;
+  }
+}
+
+  /* =======================
+     EXTRA SMALL (≤ 480px)
+  ======================= */
+  @media (max-width: 480px) {
+
+    .action-buttons {
+      grid-template-columns: 1fr;
+    }
+
+    h2 {
+      font-size: 18px;
+    }
+
+    button {
+      width: 100%;
+    }
+  }
 `}</style>
+
 
     </div>
   );

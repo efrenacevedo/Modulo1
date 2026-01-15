@@ -25,19 +25,25 @@ body {
   background-size: cover;
 }
 
+/* =====================
+   LAYOUT PRINCIPAL
+===================== */
 section {
   display: flex;
-  grid-template-columns: 50% 45%;
-  place-items: center;
+  align-items: center;
+  justify-content: space-between;
   gap: 60px;
   min-height: 100vh;
   padding: 20px 60px;
+  flex-wrap: wrap;
 }
 
-/* CONTENT */
-
+/* =====================
+   CONTENT
+===================== */
 .content {
-  max-width: 2400px;
+  flex: 1 1 480px;
+  max-width: 800px;
 }
 
 .content h1 {
@@ -49,7 +55,6 @@ section {
   margin-bottom: 36px;
   color: #fff;
 }
-
 
 .content p {
   font-size: clamp(0.9rem, 3vw, 1.25rem);
@@ -65,24 +70,23 @@ section {
   font-size: clamp(0.9rem, 4vw, 1rem);
   font-weight: 600;
   border: 0;
-  outline: 0;
-  padding: 8px 14px;
+  padding: 8px 18px;
   border-radius: 7px;
-  transform: scale(1);
-  transition: all 0.4s ease-in;
+  transition: all 0.3s ease;
   cursor: pointer;
 }
 
-.content button:is(:hover, :focus) {
-  transform: scale(0.98);
+.content button:hover {
+  transform: scale(0.97);
   background-color: #6f7aa6;
   color: #eaeaea;
 }
 
-/* SLIDER */
-
+/* =====================
+   SWIPER
+===================== */
 .swiper {
-  position: relative;
+  flex: 0 0 auto;
   width: 400px;
   height: 490px;
 }
@@ -90,22 +94,30 @@ section {
 .swiper-slide {
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  user-select: none;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.swiper-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 20px;
 }
 
+/* =====================
+   OVERLAYS (UNIFICADO Y FORMAL)
+===================== */
 .cost {
   position: absolute;
   top: 8px;
   right: 6px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
   border-radius: 30px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   color: #fff;
-  font-size: clamp(0.8rem, 4vw, 0.9rem);
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
@@ -113,12 +125,7 @@ section {
   color: #202134;
 }
 
-.swiper-slide img {
-  width: 100%;
-  height: 71%;
-  border-radius: 20px;
-}
-
+/* BASE PARA WEB + MÓVIL */
 .overlay {
   position: absolute;
   display: flex;
@@ -127,64 +134,34 @@ section {
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 150px;
-  padding: 10px 20px;
-  background: rgba(93, 95, 145, 0.2);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  min-height: 90px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   color: #fff;
   border-radius: 0 0 20px 20px;
 }
 
 .overlay h1 {
-  font-size: clamp(1.2rem, 4vw, 1.5rem);
+  font-family: "Comfortaa", sans-serif;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
   font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .overlay p {
-  font-size: clamp(0.8rem, 4vw, 0.9rem);
+  font-size: clamp(0.75rem, 1vw, 0.9rem);
   font-weight: 300;
   line-height: 1.3;
+  opacity: 0.9;
 }
 
-.ratings {
-  display: flex;
-  column-gap: 10px;
-  margin-top: -6px;
-}
-
-.ratings span {
-  font-size: clamp(0.8rem, 4vw, 0.9rem);
-  font-weight: 300;
-}
-
-.star {
-  color: #afe312;
-}
-
-.logo {
-  position: fixed;
-  right: -20px;
-  bottom: -30px;
-  z-index: 10;
-}
-
-.logo img {
-  width: 120px;
-}
-
-@media (max-width: 890px) {
-  .logo {
-  right: -10px;
-  bottom: -20px;
-}
-  
- .logo img {
-  width: 80px;
-  }
-}
-
+/* =====================
+   RESPONSIVE
+===================== */
 @media (max-width: 1050px) {
   .swiper {
     width: 350px;
@@ -192,39 +169,34 @@ section {
   }
 }
 
-@media (max-width: 930px) {
+@media (max-width: 900px) {
   section {
-    grid-template-columns: 100%;
-    grid-template-rows: 55% 40%;
-    grid-template-areas:
-      "slider"
-      "content";
-    place-items: center;
-    gap: 64px;
-    padding: 60px;
-  }
-
-  .swiper {
-    grid-area: slider;
+    flex-direction: column;
+    text-align: center;
+    padding: 60px 30px;
   }
 
   .content {
-    grid-area: content;
-    text-align: center;
+    max-width: 100%;
   }
 
-  .content h1 {
-    margin-bottom: 20px;
+  .swiper {
+    order: -1;
   }
 }
 
-@media (max-width: 470px) {
-  section {
-    padding: 40px 40px 60px;
+@media (max-width: 480px) {
+  .overlay {
+    min-height: 70px;
+    padding: 8px 12px;
   }
 
   .swiper {
     width: 300px;
     height: 400px;
+  }
+
+  .content h1 {
+    font-size: 1.6rem;
   }
 }
