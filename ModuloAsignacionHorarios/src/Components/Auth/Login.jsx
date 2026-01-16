@@ -39,7 +39,7 @@ export default function Login({ setAuth }) {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo">
-            {/* Usa tu imagen local en lugar del SVG */}
+            {}
             <img 
               src={garzaLogo} 
               alt="Logo Garza - Colegio La Garza" 
