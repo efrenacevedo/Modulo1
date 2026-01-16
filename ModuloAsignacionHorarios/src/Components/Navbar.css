@@ -19,8 +19,8 @@ header {
 
 
 nav {
-  position: relative;       /* 🔥 CLAVE */
-  top: 16px;             /* distancia real desde arriba */
+  position: relative;       
+  top: 16px;             
   left: 50%;
   transform: translateX(-50%);
 
