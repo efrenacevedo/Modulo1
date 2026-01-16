@@ -52,15 +52,15 @@
 }
 
 .alert-panel.error {
-  background: linear-gradient(135deg, #8b0000, #b22222);
+  background: linear-gradient(135deg, #7b1e1e, #eb8a30);
 }
 
 .alert-panel.success {
-  background: linear-gradient(135deg, #1e7b3a, #2aa55f);
+  background: linear-gradient(135deg, #7b1e1e, #eb8a30);
 }
 
 .alert-panel.info {
-  background: linear-gradient(135deg, #1e3a7b, #2a5aa5);
+  background: linear-gradient(135deg, #7b1e1e, #eb8a30);
 }
 
 
