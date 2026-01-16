@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import ModalAlert from "./Generic/ModalAlert"; 
+
 
 /* =========================
    CONSTANTES
@@ -57,6 +59,15 @@ const ExcelManager = () => {
   const [vista, setVista] = useState("tabla");
   const [sortConfig, setSortConfig] = useState(null);
 
+  /*
+    Alertas
+  */
+
+    const [openAlert, setOpenAlert] = useState(false);
+    const [alertType, setAlertType] = useState("info");
+    const [alertMessage, setAlertMessage] = useState("");
+
+
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
   /* =========================
@@ -102,6 +113,14 @@ const ExcelManager = () => {
      ASIGNAR AULAS
   ==========================*/
   const asignarAulas = () => {
+  if (datos.length === 0) {
+    setAlertMessage("Primero debes cargar un archivo Excel");
+    setAlertType("error");
+    setOpenAlert(true);
+    return;
+  }
+
+  try {
     const edificio = {};
     DIAS.forEach(d => edificio[d] = {});
 
@@ -133,7 +152,19 @@ const ExcelManager = () => {
     });
 
     setDatos(resultado);
-  };
+
+    // ✅ ALERT SUCCESS
+    setAlertMessage("Aulas asignadas correctamente");
+    setAlertType("success");
+    setOpenAlert(true);
+
+  } catch (e) {
+    // ❌ ALERT ERROR
+    setAlertMessage("Ocurrió un error al asignar las aulas");
+    setAlertType("error");
+    setOpenAlert(true);
+  }
+};
 
   /* =========================
      ORDENAMIENTO
@@ -436,6 +467,15 @@ pdf.text(
           </table>
         </div>
       )}
+
+      {openAlert && (
+  <ModalAlert
+    mensaje={alertMessage}
+    type={alertType}
+    onClose={() => setOpenAlert(false)}
+  />
+)}
+
 
       {vista === "horario" &&
         <Calendario
