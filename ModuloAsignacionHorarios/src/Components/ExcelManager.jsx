@@ -655,6 +655,7 @@ pdf.text(
   color: var(--table-text);
 }
 
+
   .responsive-table td {
     display: flex;
     justify-content: space-between;
