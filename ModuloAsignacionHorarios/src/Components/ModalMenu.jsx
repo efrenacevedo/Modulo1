@@ -6,7 +6,7 @@ const ModalMenu = ({ onClose }) => {
     <div className="hamburger-panel">
       <a href="/">Principal</a>
       <a href="/cargadatos">Cargar Datos</a>
-      <a href="/logout">Cerrar sesión</a>
+      <a href="/login">Cerrar sesión</a>
     </div>
   );
 };
