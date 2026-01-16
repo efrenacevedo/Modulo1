@@ -42,13 +42,10 @@ function App() {
           />
 
           <Route
-            path="/cargadatos"
-            element={
-              <PrivateRoute auth={auth}>
-                <ExcelManager />
-              </PrivateRoute>
-            }
+          path="/cargadatos"
+          element={<ExcelManager />}
           />
+
         </Route>
 
         <Route path="*" element={<NotFound />} />
