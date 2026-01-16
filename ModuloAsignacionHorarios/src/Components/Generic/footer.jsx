@@ -1,5 +1,5 @@
 import "./Footer.css";
-
+import { Link } from "react-router-dom";
 const Footer = () => {
   return (
     <footer className="app-footer">
@@ -18,45 +18,45 @@ const Footer = () => {
           {/* MENÚ */}
           <ul className="box">
             <li className="link_name">Menú</li>
-            <li><a href="#">Inicio</a></li>
-            <li><a href="#">Bachillerato</a></li>
-            <li><a href="#">Licenciatura</a></li>
-            <li><a href="#">Posgrado</a></li>
-            <li><a href="#">Investigación</a></li>
+            <li><Link to="/">Inicio</Link></li>
+            <li><Link to="/bachillerato">Bachillerato</Link></li>
+            <li><Link to="/licenciatura">Licenciatura</Link></li>
+            <li><Link to="/postgrado">Posgrado</Link></li>
+            <li><Link to="/">Investigacion</Link></li>
           </ul>
 
           {/* LIGAS DE INTERÉS */}
           <ul className="box">
             <li className="link_name">Ligas de interés</li>
-            <li><a href="#">ANUIES</a></li>
-            <li><a href="#">CUMex</a></li>
+            <li><Link to="/ANUIES">ANUIES</Link></li>
+            <li><Link to="/CUMex">CUMex</Link></li>
           </ul>
 
           {/* LEGAL */}
           <ul className="box">
             <li className="link_name">Legal</li>
-            <li><a href="#">Aviso de Privacidad</a></li>
-            <li><a href="#">Contraloría Social</a></li>
-            <li><a href="#">Transparencia</a></li>
-            <li><a href="#">Gaceta</a></li>
+            <li><Link to="/privacidad">Aviso de privacidad</Link></li>
+            <li><Link to="/contraloriasocial">Contraloría Social</Link></li>
+            <li><Link to="/transparencia">Trasnparencia</Link></li>
+            <li><Link to="/gaceta">Gaceta</Link></li>
           </ul>
 
           {/* INFORMACIÓN */}
           <ul className="box">
             <li className="link_name">Información</li>
-            <li><a href="#">Calendario Académico</a></li>
-            <li><a href="#">Mapas y Accesibilidad</a></li>
+            <li><Link to="/calendarioacademico">Calendario Académico</Link></li>
+            <li><Link to="/mapasyaccesibilidad">Mapas y accesibilidad</Link></li>
           </ul>
 
           {/* CONTACTO */}
           <ul className="box">
             <li className="link_name">Contacto</li>
             <li>
-              <a href="#">
+              <Link to="/"></Link>
                 Torres de Rectoría Pachuca–Actopan Km. 4.5,
                 Col. Campo de Tiro, Pachuca de Soto, Hidalgo,
                 C.P. 42039
-              </a>
+              
             </li>
             <li>
               <a href="tel:+527717172000">
