@@ -45,7 +45,7 @@ export default function Login({ setAuth }) {
               alt="Logo Garza - Colegio La Garza" 
               className="garza-logo-img"
             />
-            <div className="school-name">Colegio La Garza</div>
+            <div className="school-name">Universidad Autónoma del Estado de Hidalgo</div>
           </div>
           <h1>Bienvenido</h1>
           <p className="login-subtitle">Ingresa tus credenciales para continuar</p>
