@@ -364,38 +364,26 @@ const asignarAulas = () => {
   const map = {};
 
   datos.forEach(m => {
+
     const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
 
     if (!map[key]) map[key] = [];
 
-    m.Horario.forEach(h => {
-      const aula = (m.AulaAsignada || []).find(a =>
-        a.dia === h.dia &&
-        a.inicio === h.inicio &&
-        a.fin === h.fin
-      )?.aula || "Sin aula";
+    (m.AulaAsignada || []).forEach(h => {
 
-      // 🔴 ESTA ES LA LÍNEA CLAVE
-      // Si ya existe una clase en ese mismo día y hora, NO se agrega otra
-      const existe = map[key].some(b =>
-        b.dia === h.dia &&
-        b.inicio === h.inicio &&
-        b.fin === h.fin
-      );
+      map[key].push({
+        dia: h.dia,
+        inicio: h.inicio,
+        fin: h.fin,
+        aula: h.aula,
+        materia: m.NombreAsignatura,
+        profesor: m.NombreProfesor,
+        semestre: m.Semestre,
+        grupo: m.Grupo
+      });
 
-      if (!existe) {
-        map[key].push({
-          dia: h.dia,
-          inicio: h.inicio,
-          fin: h.fin,
-          aula,
-          materia: m["Nombre de la asignatura"],
-          profesor: m["Nombre del profesor"],
-          semestre: m.Semestre,
-          grupo: m.Grupo
-        });
-      }
     });
+
   });
 
   return map;
@@ -411,7 +399,15 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
 
   input.classList.add('exportando-pdf');
 
-  html2canvas(input, { scale: 2 }).then((canvas) => {
+  // ocultar botones PDF
+  const botones = input.querySelectorAll('.no-pdf');
+  botones.forEach(btn => btn.style.display = 'none');
+
+  html2canvas(input, {
+    scale: 3,
+    useCORS: true
+  }).then((canvas) => {
+
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('landscape', 'pt', 'a4');
 
@@ -419,28 +415,38 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
     const pageHeight = pdf.internal.pageSize.getHeight();
 
     /* ===============================
-       ENCABEZADO
+       BARRA SUPERIOR
     =============================== */
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(22);
-    pdf.text('HORARIO ESCOLAR', pageWidth / 2, 40, { align: 'center' });
-
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Grupo: ${grupo}`, 40, 75);
-    pdf.text(`Semestre: ${semestre}`, pageWidth - 200, 75);
-
-    // Línea separadora
-    pdf.setLineWidth(1);
-    pdf.line(40, 90, pageWidth - 40, 90);
+    pdf.setFillColor(15, 23, 42);
+    pdf.rect(0, 0, pageWidth, 55, 'F');
 
     /* ===============================
-       IMAGEN DEL HORARIO
+       TITULO
     =============================== */
+    pdf.setTextColor(255,255,255);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(24);
+    pdf.text('HORARIO ESCOLAR', pageWidth / 2, 35, { align: 'center' });
 
-    const maxWidth = pageWidth - 80;
-    const maxHeight = pageHeight - 150;
+    /* ===============================
+       DATOS
+    =============================== */
+    pdf.setTextColor(0,0,0);
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+
+    pdf.text(`Grupo: ${grupo}`, 50, 85);
+    pdf.text(`Semestre: ${semestre}`, pageWidth - 170, 85);
+
+    // línea separadora
+    pdf.setDrawColor(180);
+    pdf.line(50, 95, pageWidth - 50, 95);
+
+    /* ===============================
+       IMAGEN MÁS GRANDE
+    =============================== */
+    const maxWidth = pageWidth - 100;
+    const maxHeight = pageHeight - 220;
 
     const scale = Math.min(
       maxWidth / canvas.width,
@@ -456,62 +462,37 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
     pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
 
     /* ===============================
-       PIE DE PÁGINA
+       FIRMA ABAJO
     =============================== */
+    const firmaY = pageHeight - 70;
 
+    pdf.setDrawColor(120);
+    pdf.line(pageWidth / 2 - 140, firmaY, pageWidth / 2 + 140, firmaY);
+
+    pdf.setFontSize(11);
+    pdf.text('Nombre y firma', pageWidth / 2, firmaY + 18, {
+      align: 'center'
+    });
+
+    /* ===============================
+       FECHA
+    =============================== */
     pdf.setFontSize(10);
     pdf.text(
       `Generado el ${new Date().toLocaleDateString()}`,
-      pageWidth - 40,
+      pageWidth - 50,
       pageHeight - 20,
       { align: 'right' }
     );
 
-    /* ===============================
-   FIRMA DEL RESPONSABLE
-=============================== */
-
-const firmaY = pageHeight - 60;
-
-const firmaOffsetX = -120; // 👈 ajusta este valor a tu gusto
-const firmaCenterX = pageWidth / 2 + firmaOffsetX;
-
-pdf.setFontSize(12);
-pdf.setFont('helvetica', 'normal');
-
-// Texto superior
-pdf.text(
-  'Firma del responsable',
-  firmaCenterX,
-  firmaY - 20,
-  { align: 'center' }
-);
-
-// Línea de firma
-pdf.setLineWidth(1);
-pdf.line(
-  firmaCenterX - 150,
-  firmaY,
-  firmaCenterX + 150,
-  firmaY
-);
-
-// Texto inferior
-pdf.setFontSize(10);
-pdf.text(
-  'Nombre y firma',
-  firmaCenterX,
-  firmaY + 15,
-  { align: 'center' }
-);
-
-
     pdf.save(`${titulo}.pdf`);
+
+    // restaurar botones
+    botones.forEach(btn => btn.style.display = 'inline-block');
 
     input.classList.remove('exportando-pdf');
   });
 };
-
 
   // Descargar todos los PDFs de profesores
   const exportAllProfesores = () => {
@@ -730,12 +711,18 @@ pdf.text(
 
 
       {vista === "horario" &&
-        <Calendario
-          id="horario-general"
-          titulo="Horario General"
-          bloques={datos.flatMap(m => m.AulaAsignada || [])}
-        />
-      }
+  <Calendario
+    id="horario-general"
+    titulo="Horario General"
+    bloques={datos.flatMap(m =>
+      (m.AulaAsignada || []).map(h => ({
+        ...h,
+        materia: m.NombreAsignatura,
+        profesor: m.NombreProfesor
+      }))
+    )}
+  />
+}
 
       {vista === "profesores" && (
         <>
