@@ -20,6 +20,17 @@ const DIA_COLOR = {
   Viernes: "#ef4444"
 };
 
+const normalizarHora = (h) => {
+  let hora = Number(h);
+
+  // Si es 1,2,3,4,5,6 asumimos que es de la tarde
+  if (hora >= 1 && hora <= 6) {
+    hora += 12;
+  }
+
+  return hora;
+};
+
 /* =========================
    UTILIDADES
 =========================*/
@@ -59,6 +70,69 @@ const ExcelManager = () => {
   const [vista, setVista] = useState("tabla");
   const [sortConfig, setSortConfig] = useState(null);
 
+  // =========================
+// OR-TOOLS (BACKEND)
+// =========================
+const generarConORTools = async () => {
+  if (!Array.isArray(datos) || datos.length === 0) {
+    setAlertMessage("Primero debes cargar un archivo Excel");
+    setAlertType("error");
+    setOpenAlert(true);
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    // 🔍 Debug: ver exactamente qué se envía al backend
+    console.log("JSON enviado a OR-Tools:", datos);
+
+    const response = await fetch("http://127.0.0.1:8000/generar-horarios", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(datos)
+    });
+
+    const data = await response.json();
+
+    // 🔍 Debug: ver exactamente qué regresa el backend
+    console.log("Respuesta OR-Tools:", data);
+
+    // 🛡️ Validación obligatoria de la respuesta
+    if (!Array.isArray(data)) {
+      console.error("Respuesta inválida del backend:", data);
+
+      setAlertMessage(
+        data?.error ||
+        "Error al generar horarios (respuesta inválida del servidor)"
+      );
+      setAlertType("error");
+      setOpenAlert(true);
+      return;
+    }
+
+    // 🔥 Aquí ya vienen las aulas calculadas por OR-Tools
+    setDatos(data);
+
+    setAlertMessage("Horarios generados correctamente con OR-Tools");
+    setAlertType("success");
+    setOpenAlert(true);
+
+  } catch (error) {
+    console.error("Error al conectar con OR-Tools:", error);
+
+    setAlertMessage("Error al conectar con el servidor de OR-Tools");
+    setAlertType("error");
+    setOpenAlert(true);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
   /*
     Alertas
   */
@@ -87,50 +161,96 @@ const ExcelManager = () => {
   text: isDark ? '#e5e7eb' : '#111827'
 };
 
+const procesarExcel = (filas) => {
+
+  const dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
+  let indiceDia = 0;
+
+  const materias = filas.map((fila) => {
+
+    const horas = parseInt(fila["Horas"]) || 2;
+
+    const inicio = 7;
+    const fin = inicio + horas;
+
+    const materia = {
+      Semestre: parseInt(fila["Semestre"]) || 0,
+      Grupo: fila["Grupo"] || "",
+      NombreAsignatura: fila["Nombre de la asignatura"] || "",
+      NombreProfesor: fila["Nombre del profesor"] || "",
+      Turno: fila["Turno"] || "",
+      PeriodoEscolar: fila["Periodo Escolar"] || "",
+
+      Horario: [
+        {
+          dia: dias[indiceDia % dias.length],
+          inicio: inicio,
+          fin: fin
+        }
+      ]
+    };
+
+    indiceDia++;
+
+    return materia;
+  });
+
+  return materias;
+};
 
   /* =========================
      CARGA EXCEL
   ==========================*/
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    setLoading(true);
-    const reader = new FileReader();
+  setLoading(true);
 
-    reader.onload = (event) => {
+  const reader = new FileReader();
+
+  reader.onload = (event) => {
+    try {
+
+      // Leer archivo Excel
       const workbook = XLSX.read(event.target.result, { type: 'array' });
+
+      // Primera hoja
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      const data = XLSX.utils.sheet_to_json(sheet, { defval: '' }).map(row => {
-        const clean = Object.fromEntries(
-          Object.entries(row).map(([k, v]) => [k.trim(), v])
-        );
+      // Convertir Excel a JSON
+      const filas = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-        const Horario = [];
-        DIAS.forEach(d => {
-          if (clean[d]) {
-            const [inicio, fin] = clean[d].split('-').map(Number);
-            if (!isNaN(inicio) && !isNaN(fin)) {
-              Horario.push({ dia: d, inicio, fin });
-            }
-          }
-        });
+      console.log("Filas leídas del Excel:", filas);
 
-        return { ...clean, Horario };
-      });
+      // Procesar filas para generar horarios
+      const data = procesarExcel(filas);
 
+      console.log("Datos procesados:", data);
+
+      // Guardar datos en el estado
       setDatos(data);
-      setLoading(false);
-    };
 
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+
+      console.error("Error al procesar el Excel:", error);
+
+      setAlertMessage("Error al procesar el archivo Excel");
+      setAlertType("error");
+      setOpenAlert(true);
+
+    } finally {
+      setLoading(false);
+    }
   };
 
+  reader.readAsArrayBuffer(file);
+};
+
   /* =========================
-     ASIGNAR AULAS
-  ==========================*/
-  const asignarAulas = () => {
+   ASIGNAR AULAS (CORREGIDO POR GRUPO Y SEMESTRE)
+=========================*/
+const asignarAulas = () => {
   if (datos.length === 0) {
     setAlertMessage("Primero debes cargar un archivo Excel");
     setAlertType("error");
@@ -139,27 +259,41 @@ const ExcelManager = () => {
   }
 
   try {
+    /*
+      Estructura:
+      edificio[semestre][grupo][dia][aula] = [{inicio, fin}]
+    */
     const edificio = {};
-    DIAS.forEach(d => edificio[d] = {});
 
-    const ordenadas = [...datos].sort((a, b) =>
-      Math.min(...a.Horario.map(h => h.inicio)) -
-      Math.min(...b.Horario.map(h => h.inicio))
-    );
+    const resultado = datos.map(materia => {
+      const semestre = materia.Semestre;
+      const grupo = materia.Grupo;
 
-    const resultado = ordenadas.map(materia => {
+      // Crear estructura por semestre
+      if (!edificio[semestre]) edificio[semestre] = {};
+
+      // Crear estructura por grupo
+      if (!edificio[semestre][grupo]) {
+        edificio[semestre][grupo] = {};
+        DIAS.forEach(d => {
+          edificio[semestre][grupo][d] = {};
+        });
+      }
+
       const asignaciones = [];
 
       materia.Horario.forEach(h => {
         for (let aula of AULAS) {
-          if (!edificio[h.dia][aula]) edificio[h.dia][aula] = [];
+          if (!edificio[semestre][grupo][h.dia][aula]) {
+            edificio[semestre][grupo][h.dia][aula] = [];
+          }
 
-          const choque = edificio[h.dia][aula].some(b =>
+          const choque = edificio[semestre][grupo][h.dia][aula].some(b =>
             !(h.fin <= b.inicio || h.inicio >= b.fin)
           );
 
           if (!choque) {
-            edificio[h.dia][aula].push(h);
+            edificio[semestre][grupo][h.dia][aula].push(h);
             asignaciones.push({ ...h, aula });
             break;
           }
@@ -171,18 +305,18 @@ const ExcelManager = () => {
 
     setDatos(resultado);
 
-    // ✅ ALERT SUCCESS
-    setAlertMessage("Aulas asignadas correctamente");
+    setAlertMessage("Aulas asignadas correctamente por grupo y semestre");
     setAlertType("success");
     setOpenAlert(true);
 
   } catch (e) {
-    // ❌ ALERT ERROR
+    console.error(e);
     setAlertMessage("Ocurrió un error al asignar las aulas");
     setAlertType("error");
     setOpenAlert(true);
   }
 };
+
 
   /* =========================
      ORDENAMIENTO
@@ -227,20 +361,46 @@ const ExcelManager = () => {
   }, [datos]);
 
   const calendarioGrupos = useMemo(() => {
-    const map = {};
-    datos.forEach(m => {
-      const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
-      if (!map[key]) map[key] = [];
-      (m.AulaAsignada || []).forEach(h => {
+  const map = {};
+
+  datos.forEach(m => {
+    const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
+
+    if (!map[key]) map[key] = [];
+
+    m.Horario.forEach(h => {
+      const aula = (m.AulaAsignada || []).find(a =>
+        a.dia === h.dia &&
+        a.inicio === h.inicio &&
+        a.fin === h.fin
+      )?.aula || "Sin aula";
+
+      // 🔴 ESTA ES LA LÍNEA CLAVE
+      // Si ya existe una clase en ese mismo día y hora, NO se agrega otra
+      const existe = map[key].some(b =>
+        b.dia === h.dia &&
+        b.inicio === h.inicio &&
+        b.fin === h.fin
+      );
+
+      if (!existe) {
         map[key].push({
-          ...h,
+          dia: h.dia,
+          inicio: h.inicio,
+          fin: h.fin,
+          aula,
           materia: m["Nombre de la asignatura"],
-          profesor: m["Nombre del profesor"]
+          profesor: m["Nombre del profesor"],
+          semestre: m.Semestre,
+          grupo: m.Grupo
         });
-      });
+      }
     });
-    return map;
-  }, [datos]);
+  });
+
+  return map;
+}, [datos]);
+
 
   /* =========================
      DESCARGA PDF
@@ -441,14 +601,21 @@ pdf.text(
       </div>
 
       {datos.length > 0 && (
-        <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button onClick={asignarAulas}>Asignar aulas</button>
-          <button onClick={() => setVista("tabla")}>Tabla</button>
-          <button onClick={() => setVista("horario")}>Horario general</button>
-          <button onClick={() => setVista("profesores")}>Profesores</button>
-          <button onClick={() => setVista("grupos")}>Grupos</button>
-        </div>
-      )}
+  <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+    <button onClick={asignarAulas}>Asignar aulas (local)</button>
+
+    {/* 🔥 NUEVO BOTÓN */}
+    <button onClick={generarConORTools}>
+      Generar horarios con OR-Tools
+    </button>
+
+    <button onClick={() => setVista("tabla")}>Tabla</button>
+    <button onClick={() => setVista("horario")}>Horario general</button>
+    <button onClick={() => setVista("profesores")}>Profesores</button>
+    <button onClick={() => setVista("grupos")}>Grupos</button>
+  </div>
+)}
+
 {vista === "tabla" && datos.length > 0 && (
   <div
     className="table-wrapper"

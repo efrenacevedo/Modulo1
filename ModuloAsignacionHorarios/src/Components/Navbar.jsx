@@ -78,11 +78,17 @@ const Navbar = () => {
     };
 
     const setActiveItem = (item) => {
-      if (currentActiveItem) currentActiveItem.classList.remove("active");
-      currentActiveItem = item;
-      item.classList.add("active");
-      moveToItem(item);
-    };
+  if (!item || !nav) return;
+
+  if (currentActiveItem) {
+    currentActiveItem.classList.remove("active");
+  }
+
+  currentActiveItem = item;
+  item.classList.add("active");
+  moveToItem(item);
+};
+
 
     items.forEach((item) => {
       item.addEventListener("mouseenter", () => moveToItem(item));
