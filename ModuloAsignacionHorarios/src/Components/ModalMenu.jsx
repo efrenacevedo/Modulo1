@@ -1,14 +1,14 @@
-
-import "./ModalNavbar.css";
+import "./ModalNavbar.css"
+import { Link } from "react-router-dom"
 
 const ModalMenu = ({ onClose }) => {
   return (            
     <div className="hamburger-panel">
-      <a href="/">Principal</a>
-      <a href="/cargadatos">Cargar Datos</a>
-      <a href="/login">Cerrar sesión</a>
+      <Link to="/" onClick={onClose}>Principal</Link>
+      <Link to="/cargadatos" onClick={onClose}>Cargar Datos</Link>
+      <Link to="/login" onClick={onClose}>Cerrar sesión</Link>
     </div>
-  );
-};
+  )
+}
 
-export default ModalMenu;
+export default ModalMenu
