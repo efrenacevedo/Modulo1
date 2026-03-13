@@ -162,40 +162,62 @@ const generarConORTools = async () => {
 };
 
 const procesarExcel = (filas) => {
-
   const dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
-  let indiceDia = 0;
 
-  const materias = filas.map((fila) => {
+  const ocupacion = {};
+
+  return filas.map((fila, index) => {
+    const semestre = parseInt(fila["Semestre"]) || 0;
+    const grupo = fila["Grupo"] || "";
+
+    const key = `${semestre}-${grupo}`;
+
+    if (!ocupacion[key]) {
+      ocupacion[key] = {
+        diaIndex: 0,
+        hora: 7
+      };
+    }
 
     const horas = parseInt(fila["Horas"]) || 2;
 
-    const inicio = 7;
-    const fin = inicio + horas;
+    const bloques = [];
 
-    const materia = {
-      Semestre: parseInt(fila["Semestre"]) || 0,
-      Grupo: fila["Grupo"] || "",
+    let horasRestantes = horas;
+
+    while (horasRestantes > 0) {
+      const horasDia = Math.min(2, horasRestantes);
+
+      const dia = dias[ocupacion[key].diaIndex % dias.length];
+      const inicio = ocupacion[key].hora;
+      const fin = inicio + horasDia;
+
+      bloques.push({
+        dia,
+        inicio,
+        fin
+      });
+
+      ocupacion[key].diaIndex++;
+      ocupacion[key].hora++;
+
+      if (ocupacion[key].hora > 12) {
+        ocupacion[key].hora = 7;
+      }
+
+      horasRestantes -= horasDia;
+    }
+
+    return {
+      Semestre: semestre,
+      Grupo: grupo,
       NombreAsignatura: fila["Nombre de la asignatura"] || "",
       NombreProfesor: fila["Nombre del profesor"] || "",
       Turno: fila["Turno"] || "",
       PeriodoEscolar: fila["Periodo Escolar"] || "",
-
-      Horario: [
-        {
-          dia: dias[indiceDia % dias.length],
-          inicio: inicio,
-          fin: fin
-        }
-      ]
+      Horario: bloques
     };
-
-    indiceDia++;
-
-    return materia;
   });
-
-  return materias;
 };
 
   /* =========================
@@ -364,31 +386,47 @@ const asignarAulas = () => {
   const map = {};
 
   datos.forEach(m => {
-
     const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
 
-    if (!map[key]) map[key] = [];
+    if (!map[key]) {
+      map[key] = [];
+    }
 
     (m.AulaAsignada || []).forEach(h => {
-
       map[key].push({
         dia: h.dia,
         inicio: h.inicio,
         fin: h.fin,
-        aula: h.aula,
-        materia: m.NombreAsignatura,
-        profesor: m.NombreProfesor,
+        aula: h.aula || "Sin aula",
+        materia: m.NombreAsignatura || "",
+        profesor: m.NombreProfesor || "",
         semestre: m.Semestre,
         grupo: m.Grupo
       });
-
     });
+  });
 
+  // ordenar por día y hora
+  Object.keys(map).forEach(key => {
+    map[key] = map[key].sort((a, b) => {
+      const ordenDias = {
+        Lunes: 1,
+        Martes: 2,
+        Miercoles: 3,
+        Jueves: 4,
+        Viernes: 5
+      };
+
+      if (ordenDias[a.dia] !== ordenDias[b.dia]) {
+        return ordenDias[a.dia] - ordenDias[b.dia];
+      }
+
+      return a.inicio - b.inicio;
+    });
   });
 
   return map;
 }, [datos]);
-
 
   /* =========================
      DESCARGA PDF
