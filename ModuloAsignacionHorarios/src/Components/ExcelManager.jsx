@@ -4,13 +4,26 @@ import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ModalAlert from "./Generic/ModalAlert"; 
+import logoFondo from '../assets/logoFondo.png';
 
 
 /* =========================
    CONSTANTES
 =========================*/
 const DIAS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
-const AULAS = Array.from({ length: 10 }, (_, i) => `Aula ${i + 1}`);
+const AULAS_ESCUELA = [
+  "A-Lab Químico 1",
+  "A-Lab Químico 2",
+
+  "B-Sala Cómputo 1",
+  "B-Sala Cómputo 2",
+  "B-Sala Cómputo 3",
+  "B-Laboratorio 1",
+
+  ...Array.from({ length: 12 }, (_, i) => `C-Aula ${i + 1}`),
+  ...Array.from({ length: 12 }, (_, i) => `D-Aula ${i + 1}`),
+  ...Array.from({ length: 12 }, (_, i) => `E-Aula ${i + 1}`)
+];
 
 const DIA_COLOR = {
   Lunes: "#3b82f6",
@@ -209,14 +222,14 @@ const procesarExcel = (filas) => {
     }
 
     return {
-      Semestre: semestre,
-      Grupo: grupo,
-      NombreAsignatura: fila["Nombre de la asignatura"] || "",
-      NombreProfesor: fila["Nombre del profesor"] || "",
-      Turno: fila["Turno"] || "",
-      PeriodoEscolar: fila["Periodo Escolar"] || "",
-      Horario: bloques
-    };
+  Semestre: semestre,
+  Grupo: grupo,
+  NombreAsignatura: fila["Nombre de la asignatura"] || "",
+  NombreProfesor: fila["Nombre del profesor"] || "",
+  Turno: fila["Turno"] || "",
+  PE: fila["PE"] || "BG",
+  Horario: bloques
+};
   });
 };
 
@@ -273,72 +286,96 @@ const procesarExcel = (filas) => {
    ASIGNAR AULAS (CORREGIDO POR GRUPO Y SEMESTRE)
 =========================*/
 const asignarAulas = () => {
-  if (datos.length === 0) {
-    setAlertMessage("Primero debes cargar un archivo Excel");
-    setAlertType("error");
-    setOpenAlert(true);
-    return;
-  }
+  if (datos.length === 0) return;
 
-  try {
-    /*
-      Estructura:
-      edificio[semestre][grupo][dia][aula] = [{inicio, fin}]
-    */
-    const edificio = {};
+  const edificio = {};
 
-    const resultado = datos.map(materia => {
-      const semestre = materia.Semestre;
-      const grupo = materia.Grupo;
+  const resultado = datos.map(materia => {
+    const semestre = materia.Semestre;
+    const grupo = materia.Grupo;
+    const nombre = materia.NombreAsignatura.toLowerCase();
 
-      // Crear estructura por semestre
-      if (!edificio[semestre]) edificio[semestre] = {};
+    if (!edificio[semestre]) edificio[semestre] = {};
+    if (!edificio[semestre][grupo]) {
+      edificio[semestre][grupo] = {};
+      DIAS.forEach(d => {
+        edificio[semestre][grupo][d] = {};
+      });
+    }
 
-      // Crear estructura por grupo
-      if (!edificio[semestre][grupo]) {
-        edificio[semestre][grupo] = {};
-        DIAS.forEach(d => {
-          edificio[semestre][grupo][d] = {};
-        });
+    const asignaciones = [];
+
+    materia.Horario.forEach(h => {
+
+      let aulasDisponibles = [];
+
+      if (
+        nombre.includes("comput") ||
+        nombre.includes("digital") ||
+        nombre.includes("inform")
+      ) {
+        aulasDisponibles = [
+          "B-Sala Cómputo 1",
+          "B-Sala Cómputo 2",
+          "B-Sala Cómputo 3"
+        ];
       }
 
-      const asignaciones = [];
+      else if (
+        nombre.includes("quim")
+      ) {
+        aulasDisponibles = [
+          "A-Lab Químico 1",
+          "A-Lab Químico 2"
+        ];
+      }
 
-      materia.Horario.forEach(h => {
-        for (let aula of AULAS) {
-          if (!edificio[semestre][grupo][h.dia][aula]) {
-            edificio[semestre][grupo][h.dia][aula] = [];
-          }
+      else if (
+        nombre.includes("laboratorio")
+      ) {
+        aulasDisponibles = [
+          "B-Laboratorio 1"
+        ];
+      }
 
-          const choque = edificio[semestre][grupo][h.dia][aula].some(b =>
-            !(h.fin <= b.inicio || h.inicio >= b.fin)
-          );
+      else {
+        aulasDisponibles = [
+          ...Array.from({ length: 12 }, (_, i) => `C-Aula ${i + 1}`),
+          ...Array.from({ length: 12 }, (_, i) => `D-Aula ${i + 1}`),
+          ...Array.from({ length: 12 }, (_, i) => `E-Aula ${i + 1}`)
+        ];
+      }
 
-          if (!choque) {
-            edificio[semestre][grupo][h.dia][aula].push(h);
-            asignaciones.push({ ...h, aula });
-            break;
-          }
+      for (let aula of aulasDisponibles) {
+        if (!edificio[semestre][grupo][h.dia][aula]) {
+          edificio[semestre][grupo][h.dia][aula] = [];
         }
-      });
 
-      return { ...materia, AulaAsignada: asignaciones };
+        const choque = edificio[semestre][grupo][h.dia][aula].some(b =>
+          !(h.fin <= b.inicio || h.inicio >= b.fin)
+        );
+
+        if (!choque) {
+          edificio[semestre][grupo][h.dia][aula].push(h);
+
+          asignaciones.push({
+            ...h,
+            aula
+          });
+
+          break;
+        }
+      }
     });
 
-    setDatos(resultado);
+    return {
+      ...materia,
+      AulaAsignada: asignaciones
+    };
+  });
 
-    setAlertMessage("Aulas asignadas correctamente por grupo y semestre");
-    setAlertType("success");
-    setOpenAlert(true);
-
-  } catch (e) {
-    console.error(e);
-    setAlertMessage("Ocurrió un error al asignar las aulas");
-    setAlertType("error");
-    setOpenAlert(true);
-  }
+  setDatos(resultado);
 };
-
 
   /* =========================
      ORDENAMIENTO
@@ -375,7 +412,7 @@ const asignarAulas = () => {
         map[prof].push({
           ...h,
           materia: m["Nombre de la asignatura"],
-          grupo: `Sem ${m.Semestre} G${m.Grupo}`
+          grupo: `${m.PE} - Sem ${m.Semestre} G${m.Grupo}`
         });
       });
     });
@@ -386,7 +423,7 @@ const asignarAulas = () => {
   const map = {};
 
   datos.forEach(m => {
-    const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
+    const key = `${m.PE} - Sem ${m.Semestre} Grupo ${m.Grupo}`;
 
     if (!map[key]) {
       map[key] = [];
@@ -397,7 +434,11 @@ const asignarAulas = () => {
         dia: h.dia,
         inicio: h.inicio,
         fin: h.fin,
-        aula: h.aula || "Sin aula",
+        aulaTexto: h.aula
+          ? h.aula.includes("-")
+            ? `Edificio ${h.aula.split("-")[0]} ${h.aula.split("-")[1]}`
+            : `Edificio C ${h.aula}`
+          : "Sin aula",
         materia: m.NombreAsignatura || "",
         profesor: m.NombreProfesor || "",
         semestre: m.Semestre,
@@ -428,22 +469,19 @@ const asignarAulas = () => {
   return map;
 }, [datos]);
 
-  /* =========================
-     DESCARGA PDF
-  ==========================*/
-const exportPDF = (titulo, idElemento, grupo, semestre) => {
+ const exportPDF = (titulo, idElemento, grupo, semestre) => {
   const input = document.getElementById(idElemento);
   if (!input) return;
 
   input.classList.add('exportando-pdf');
 
-  // ocultar botones PDF
   const botones = input.querySelectorAll('.no-pdf');
   botones.forEach(btn => btn.style.display = 'none');
 
   html2canvas(input, {
     scale: 3,
-    useCORS: true
+    useCORS: true,
+    backgroundColor: "#ffffff"
   }).then((canvas) => {
 
     const imgData = canvas.toDataURL('image/png');
@@ -453,64 +491,97 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
     const pageHeight = pdf.internal.pageSize.getHeight();
 
     /* ===============================
-       BARRA SUPERIOR
+       FONDO GENERAL
     =============================== */
-    pdf.setFillColor(15, 23, 42);
-    pdf.rect(0, 0, pageWidth, 55, 'F');
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
 
     /* ===============================
-       TITULO
+       HEADER SUPERIOR
     =============================== */
-    pdf.setTextColor(255,255,255);
+    pdf.setFillColor(86, 7, 12);
+    pdf.rect(0, 0, pageWidth, 60, 'F');
+
+    pdf.setTextColor(255, 255, 255);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(24);
-    pdf.text('HORARIO ESCOLAR', pageWidth / 2, 35, { align: 'center' });
+    pdf.text('UNIVERSIDAD AUTONOMA DEL ESTADO DE HIDALGO ', pageWidth / 2, 38, { align: 'center' });
 
     /* ===============================
-       DATOS
+       CAJA DE DATOS
     =============================== */
-    pdf.setTextColor(0,0,0);
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'normal');
+    pdf.setFillColor(255, 255, 255);
+    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6, 'F');
 
-    pdf.text(`Grupo: ${grupo}`, 50, 85);
-    pdf.text(`Semestre: ${semestre}`, pageWidth - 170, 85);
+    pdf.setDrawColor(220);
+    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6);
 
-    // línea separadora
-    pdf.setDrawColor(180);
-    pdf.line(50, 95, pageWidth - 50, 95);
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+
+    pdf.text(`Grupo: ${grupo}`, 60, 100);
+    pdf.text(`Semestre: ${semestre}`, pageWidth - 180, 100);
 
     /* ===============================
-       IMAGEN MÁS GRANDE
+       LOGO DE FONDO (MARCA DE AGUA)
     =============================== */
-    const maxWidth = pageWidth - 100;
-    const maxHeight = pageHeight - 220;
+    const fondoWidth = 260;
+    const fondoHeight = 320;
+
+    const fondoX = (pageWidth - fondoWidth) / 2;
+    const fondoY = 150;
+
+    pdf.addImage(
+      logoFondo,
+      'PNG',
+      fondoX,
+      fondoY,
+      fondoWidth,
+      fondoHeight,
+      undefined,
+      'FAST'
+    );
+
+    /* ===============================
+       IMAGEN HORARIO
+    =============================== */
+    const maxWidth = pageWidth - 35;
+    const maxHeight = pageHeight - 180;
 
     const scale = Math.min(
-      maxWidth / canvas.width,
-      maxHeight / canvas.height
+      (maxWidth / canvas.width) * 0.965,
+      (maxHeight / canvas.height) * 0.965
     );
 
     const imgWidth = canvas.width * scale;
     const imgHeight = canvas.height * scale;
 
-    const x = (pageWidth - imgWidth) / 2;
-    const y = 110;
+    const x = (pageWidth - imgWidth) / 2 - 15;
+    const y = 102;
 
     pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
 
     /* ===============================
-       FIRMA ABAJO
+       LÍNEA DECORATIVA ABAJO
     =============================== */
-    const firmaY = pageHeight - 70;
+    pdf.setDrawColor(210);
+    pdf.setLineWidth(0.5);
+    pdf.line(50, pageHeight - 70, pageWidth - 50, pageHeight - 70);
 
-    pdf.setDrawColor(120);
-    pdf.line(pageWidth / 2 - 140, firmaY, pageWidth / 2 + 140, firmaY);
+    /* ===============================
+       FIRMA
+    =============================== */
+    const firmaX = 100;
+    const firmaY = pageHeight - 45;
 
-    pdf.setFontSize(11);
-    pdf.text('Nombre y firma', pageWidth / 2, firmaY + 18, {
-      align: 'center'
-    });
+    pdf.setDrawColor(60, 60, 60);
+    pdf.setLineWidth(1.4);
+    pdf.line(firmaX, firmaY, firmaX + 260, firmaY);
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(60);
+    pdf.text('Nombre y firma', firmaX + 70, firmaY + 15);
 
     /* ===============================
        FECHA
@@ -519,13 +590,24 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
     pdf.text(
       `Generado el ${new Date().toLocaleDateString()}`,
       pageWidth - 50,
-      pageHeight - 20,
+      pageHeight - 25,
       { align: 'right' }
+    );
+
+    /* ===============================
+       PIE DE DOCUMENTO
+    =============================== */
+    pdf.setFontSize(9);
+    pdf.setTextColor(120);
+    pdf.text(
+      'Sistema de generación automática de horarios',
+      pageWidth / 2,
+      pageHeight - 25,
+      { align: 'center' }
     );
 
     pdf.save(`${titulo}.pdf`);
 
-    // restaurar botones
     botones.forEach(btn => btn.style.display = 'inline-block');
 
     input.classList.remove('exportando-pdf');
@@ -575,14 +657,19 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
                   <div key={i} style={{
                     background: colorBloque,
                     color: 'white',
-                    borderRadius: 8,
-                    padding: 8,
-                    marginTop: 6
+                    borderRadius: 10,
+                    padding: 10,
+                    marginTop: 8,
+                    minHeight: 110,
+                    wordBreak: 'break-word',
+                    whiteSpace: 'normal',
+                    lineHeight: 1.4,
+                    fontSize: 14
                   }}>
                     <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
-                    {b.materia}<br />
-                    {b.aula}<br />
-                    {b.profesor || b.grupo}
+                      {b.materia}<br />
+                      {b.aulaTexto}<br />
+                      {b.profesor || b.grupo}
                   </div>
                 );
               })}
@@ -781,16 +868,17 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
 
           <button onClick={exportAllGrupos} >Descargar todos PDFs Grupos</button>
           {Object.entries(calendarioGrupos).map(([g, b]) => {
-  const match = g.match(/Sem\s*(\d+)\s*Grupo\s*(.+)/);
+  const match = g.match(/(.+)- Sem\s*(\d+)\s*Grupo\s*(.+)/);
 
-  const semestre = match ? match[1] : '';
-  const grupo = match ? match[2] : '';
+const periodo = match ? match[1].trim() : '';
+const semestre = match ? match[2] : '';
+const grupo = match ? match[3] : '';
 
   return (
     <Calendario
       key={g}
       id={`grupo-${g.replace(/\s+/g, '-')}`}
-      titulo={`Grupo ${grupo} - Semestre ${semestre}`}
+      titulo={`${periodo} - Grupo ${grupo} - Semestre ${semestre}`}
       bloques={b}
       grupo={grupo}
       semestre={semestre}
@@ -827,10 +915,11 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
 
   /* Calendario */
   .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    align-items: start;
-  }
+  display: grid;
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
 
   /* =======================
      TABLET (≤ 1024px)
