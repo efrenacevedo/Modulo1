@@ -83,10 +83,14 @@ const ExcelManager = () => {
   const [vista, setVista] = useState("tabla");
   const [sortConfig, setSortConfig] = useState(null);
 
+  // variable para filtros de busqueda
+  const [filtroProfesor, setFiltroProfesor] = useState("");
+  
   // =========================
 // OR-TOOLS (BACKEND)
 // =========================
 const generarConORTools = async () => {
+  console.log("🔥 ENTRE A generarConORTools");
   if (!Array.isArray(datos) || datos.length === 0) {
     setAlertMessage("Primero debes cargar un archivo Excel");
     setAlertType("error");
@@ -97,54 +101,59 @@ const generarConORTools = async () => {
   try {
     setLoading(true);
 
-    // 🔍 Debug: ver exactamente qué se envía al backend
-    console.log("JSON enviado a OR-Tools:", datos);
-
-    const response = await fetch("http://127.0.0.1:8000/generar-horarios", {
+    console.log("Filas originales:", datos);
+    console.log("ANTES DEL FETCH");
+    // 🔹 Paso 1: transformar datos
+    const resTransform = await fetch("http://127.0.0.1:8000/transformar-datos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(datos)
     });
+    console.log("DESPUES DEL FETCH TRANSFORM");
+    const dataTransform = await resTransform.json();
 
-    const data = await response.json();
+    console.log("Transformado:", dataTransform);
 
-    // 🔍 Debug: ver exactamente qué regresa el backend
-    console.log("Respuesta OR-Tools:", data);
+    // 🔹 Paso 2: OR-Tools nuevo
+    const resHorarios = await fetch("http://127.0.0.1:8000/generar-horarios-v2", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(dataTransform)
+    });
 
-    // 🛡️ Validación obligatoria de la respuesta
-    if (!Array.isArray(data)) {
-      console.error("Respuesta inválida del backend:", data);
+    const horarios = await resHorarios.json();
 
-      setAlertMessage(
-        data?.error ||
-        "Error al generar horarios (respuesta inválida del servidor)"
-      );
+    console.log("Respuesta OR-Tools v2:", horarios);
+
+    if (!Array.isArray(horarios)) {
+      setAlertMessage("Error en la respuesta del servidor");
       setAlertType("error");
       setOpenAlert(true);
       return;
     }
 
-    // 🔥 Aquí ya vienen las aulas calculadas por OR-Tools
-    setDatos(data);
+   const adaptado = adaptarDatos(horarios);
+setDatos(adaptado);
 
-    setAlertMessage("Horarios generados correctamente con OR-Tools");
+    setAlertMessage("Horarios generados correctamente (v2)");
     setAlertType("success");
     setOpenAlert(true);
 
   } catch (error) {
-    console.error("Error al conectar con OR-Tools:", error);
+    console.error("Error:", error);
 
-    setAlertMessage("Error al conectar con el servidor de OR-Tools");
+    setAlertMessage("Error al conectar con el servidor");
     setAlertType("error");
     setOpenAlert(true);
+
   } finally {
     setLoading(false);
   }
 };
-
-
 
   /*
     Alertas
@@ -175,108 +184,69 @@ const generarConORTools = async () => {
 };
 
 const procesarExcel = (filas) => {
+
   const dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
+  let indiceDia = 0;
 
-  const ocupacion = {};
+  const resultado = [];
 
-  return filas.map((fila, index) => {
-    const semestre = parseInt(fila["Semestre"]) || 0;
-    const grupo = fila["Grupo"] || "";
-
-    const key = `${semestre}-${grupo}`;
-
-    if (!ocupacion[key]) {
-      ocupacion[key] = {
-        diaIndex: 0,
-        hora: 7
-      };
-    }
+  filas.forEach((fila, index) => {
 
     const horas = parseInt(fila["Horas"]) || 2;
 
     const bloques = [];
-
     let horasRestantes = horas;
 
+    // 🔥 dividir en bloques de máximo 2 horas (como tu backend)
     while (horasRestantes > 0) {
-      const horasDia = Math.min(2, horasRestantes);
-
-      const dia = dias[ocupacion[key].diaIndex % dias.length];
-      const inicio = ocupacion[key].hora;
-      const fin = inicio + horasDia;
-
-      bloques.push({
-        dia,
-        inicio,
-        fin
-      });
-
-      ocupacion[key].diaIndex++;
-      ocupacion[key].hora++;
-
-      if (ocupacion[key].hora > 12) {
-        ocupacion[key].hora = 7;
-      }
-
-      horasRestantes -= horasDia;
+      const bloque = Math.min(2, horasRestantes);
+      bloques.push(bloque);
+      horasRestantes -= bloque;
     }
 
-    return {
-  Semestre: semestre,
-  Grupo: grupo,
-  NombreAsignatura: fila["Nombre de la asignatura"] || "",
-  NombreProfesor: fila["Nombre del profesor"] || "",
-  Turno: fila["Turno"] || "",
-  PE: fila["PE"] || "BG",
-  Horario: bloques
-};
+    bloques.forEach((bloque, i) => {
+
+      const dia = dias[(indiceDia + i) % dias.length];
+
+      let inicio = 7; // puedes ajustar por turno si quieres
+      let fin = inicio + bloque;
+
+      resultado.push({
+        materia: fila["Nombre de la asignatura"] || "",
+        profesor: fila["Nombre del profesor"] || "",
+        grupo: `${fila["Periodo Escolar"]}-${fila["Semestre"]}-${fila["Grupo"]}`,
+        dia: dia,
+        hora_inicio: inicio,
+        hora_fin: fin
+      });
+
+    });
+
+    indiceDia++;
+
   });
+
+  return resultado;
 };
 
   /* =========================
      CARGA EXCEL
   ==========================*/
- const handleFileUpload = (e) => {
+const handleFileUpload = (e) => {
   const file = e.target.files[0];
   if (!file) return;
-
-  setLoading(true);
 
   const reader = new FileReader();
 
   reader.onload = (event) => {
-    try {
+    const workbook = XLSX.read(event.target.result, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const filas = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-      // Leer archivo Excel
-      const workbook = XLSX.read(event.target.result, { type: 'array' });
+    console.log("Excel ORIGINAL:", filas);
 
-      // Primera hoja
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-      // Convertir Excel a JSON
-      const filas = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-      console.log("Filas leídas del Excel:", filas);
-
-      // Procesar filas para generar horarios
-      const data = procesarExcel(filas);
-
-      console.log("Datos procesados:", data);
-
-      // Guardar datos en el estado
-      setDatos(data);
-
-    } catch (error) {
-
-      console.error("Error al procesar el Excel:", error);
-
-      setAlertMessage("Error al procesar el archivo Excel");
-      setAlertType("error");
-      setOpenAlert(true);
-
-    } finally {
-      setLoading(false);
-    }
+    // 🔥 IMPORTANTE: guardar SIN procesar
+    setDatos(filas);
   };
 
   reader.readAsArrayBuffer(file);
@@ -388,6 +358,36 @@ const asignarAulas = () => {
     setSortConfig({ key, direction });
   };
 
+  const adaptarDatos = (horarios) => {
+
+  const mapa = {};
+
+  horarios.forEach(h => {
+
+    const key = `${h.materia}-${h.profesor}-${h.grupo}`;
+
+    if (!mapa[key]) {
+      mapa[key] = {
+        NombreAsignatura: h.materia,
+        NombreProfesor: h.profesor,
+        Grupo: h.grupo,
+        Semestre: h.grupo.split("-")[1] || "",
+        AulaAsignada: []
+      };
+    }
+
+    mapa[key].AulaAsignada.push({
+      dia: h.dia,
+      inicio: h.hora_inicio,
+      fin: h.hora_fin,
+      aula: "Aula 1" // temporal
+    });
+
+  });
+
+  return Object.values(mapa);
+};
+
   const datosOrdenados = useMemo(() => {
     if (!sortConfig) return datos;
     return [...datos].sort((a, b) => {
@@ -403,73 +403,81 @@ const asignarAulas = () => {
   /* =========================
      CALENDARIOS
   ==========================*/
-  const calendarioProfesores = useMemo(() => {
-    const map = {};
-    datos.forEach(m => {
-      (m.AulaAsignada || []).forEach(h => {
-        const prof = m["Nombre del profesor"];
-        if (!map[prof]) map[prof] = [];
-        map[prof].push({
-          ...h,
-          materia: m["Nombre de la asignatura"],
-          grupo: `${m.PE} - Sem ${m.Semestre} G${m.Grupo}`
-        });
-      });
-    });
-    return map;
-  }, [datos]);
-
-  const calendarioGrupos = useMemo(() => {
+const calendarioProfesores = useMemo(() => {
   const map = {};
 
   datos.forEach(m => {
-    const key = `${m.PE} - Sem ${m.Semestre} Grupo ${m.Grupo}`;
 
-    if (!map[key]) {
-      map[key] = [];
-    }
+    const profesor = m.profesor || m.NombreProfesor || m["Nombre del profesor"] || "Sin profesor";
+
+    if (!map[profesor]) map[profesor] = [];
 
     (m.AulaAsignada || []).forEach(h => {
-      map[key].push({
+      map[profesor].push({
         dia: h.dia,
         inicio: h.inicio,
         fin: h.fin,
-        aulaTexto: h.aula
-          ? h.aula.includes("-")
-            ? `Edificio ${h.aula.split("-")[0]} ${h.aula.split("-")[1]}`
-            : `Edificio C ${h.aula}`
-          : "Sin aula",
-        materia: m.NombreAsignatura || "",
-        profesor: m.NombreProfesor || "",
-        semestre: m.Semestre,
-        grupo: m.Grupo
+        aula: h.aula,
+        materia: m.materia || m.NombreAsignatura || m["Nombre de la asignatura"],
+        profesor: profesor,
+        grupo: `G${m.grupo || m.Grupo}`
       });
     });
-  });
 
-  // ordenar por día y hora
-  Object.keys(map).forEach(key => {
-    map[key] = map[key].sort((a, b) => {
-      const ordenDias = {
-        Lunes: 1,
-        Martes: 2,
-        Miercoles: 3,
-        Jueves: 4,
-        Viernes: 5
-      };
-
-      if (ordenDias[a.dia] !== ordenDias[b.dia]) {
-        return ordenDias[a.dia] - ordenDias[b.dia];
-      }
-
-      return a.inicio - b.inicio;
-    });
   });
 
   return map;
 }, [datos]);
 
- const exportPDF = (titulo, idElemento, grupo, semestre) => {
+
+//funcion para filtro de profesores por nombre
+const profesoresFiltrados = useMemo(() => {
+  if (!filtroProfesor) return calendarioProfesores;
+
+  const filtro = filtroProfesor.toLowerCase();
+
+  return Object.fromEntries(
+    Object.entries(calendarioProfesores).filter(([prof]) =>
+      prof.toLowerCase().includes(filtro)
+    )
+  );
+}, [calendarioProfesores, filtroProfesor]);
+
+
+  const calendarioGrupos = useMemo(() => {
+  const map = {};
+
+  datos.forEach(m => {
+
+    const key = `Sem ${m.Semestre} Grupo ${m.Grupo}`;
+
+    if (!map[key]) map[key] = [];
+
+    (m.AulaAsignada || []).forEach(h => {
+
+      map[key].push({
+        dia: h.dia,
+        inicio: h.inicio,
+        fin: h.fin,
+        aula: h.aula,
+        materia: m.NombreAsignatura,
+        profesor: m.NombreProfesor,
+        semestre: m.Semestre,
+        grupo: m.Grupo
+      });
+
+    });
+
+  });
+
+  return map;
+}, [datos]);
+
+
+  /* =========================
+     DESCARGA PDF
+  ==========================*/
+const exportPDF = (titulo, idElemento, grupo, semestre) => {
   const input = document.getElementById(idElemento);
   if (!input) return;
 
@@ -850,18 +858,38 @@ const asignarAulas = () => {
 }
 
       {vista === "profesores" && (
-        <>
-          <button onClick={exportAllProfesores} >Descargar todos PDFs Profesores</button>
-          {Object.entries(calendarioProfesores).map(([p, b]) =>
-            <Calendario
-              key={p}
-              id={`profesor-${p.replace(/\s+/g, '-')}`}
-              titulo={`Profesor: ${p}`}
-              bloques={b}
-            />
-          )}
-        </>
-      )}
+  <>
+    <button onClick={exportAllProfesores}>
+      Descargar todos PDFs Profesores
+    </button>
+
+    {/* 🔍 BUSCADOR */}
+    <input
+      type="text"
+      placeholder="Buscar profesor..."
+      value={filtroProfesor}
+      onChange={(e) => setFiltroProfesor(e.target.value)}
+      style={{
+        margin: "10px 0",
+        padding: "8px 12px",
+        width: "100%",
+        maxWidth: 400,
+        borderRadius: 8,
+        border: "1px solid #ccc"
+      }}
+    />
+
+    {/* RESULTADOS */}
+    {Object.entries(profesoresFiltrados).map(([p, b]) => (
+      <Calendario
+        key={p}
+        id={`profesor-${p.replace(/\s+/g, '-')}`}
+        titulo={`Profesor: ${p}`}
+        bloques={b}
+      />
+    ))}
+  </>
+)}
 
       {vista === "grupos" && (
         <>
