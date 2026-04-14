@@ -82,10 +82,20 @@ const ExcelManager = () => {
   const [loading, setLoading] = useState(false);
   const [vista, setVista] = useState("tabla");
   const [sortConfig, setSortConfig] = useState(null);
-
-  // variable para filtros de busqueda
-  const [filtroProfesor, setFiltroProfesor] = useState("");
   
+
+  const capitalizarDia = (dia) => {
+  const dias = {
+    lunes: "Lunes",
+    martes: "Martes",
+    miercoles: "Miércoles",
+    miércoles: "Miércoles",
+    jueves: "Jueves",
+    viernes: "Viernes"
+  };
+
+  return dias[dia.toLowerCase()] || dia;
+};
   // =========================
 // OR-TOOLS (BACKEND)
 // =========================
@@ -371,6 +381,7 @@ const asignarAulas = () => {
         NombreAsignatura: h.materia,
         NombreProfesor: h.profesor,
         Grupo: h.grupo,
+        Turno: h.turno,
         Semestre: h.grupo.split("-")[1] || "",
         AulaAsignada: []
       };
@@ -403,7 +414,7 @@ const asignarAulas = () => {
   /* =========================
      CALENDARIOS
   ==========================*/
-const calendarioProfesores = useMemo(() => {
+  const calendarioProfesores = useMemo(() => {
   const map = {};
 
   datos.forEach(m => {
@@ -420,7 +431,7 @@ const calendarioProfesores = useMemo(() => {
         aula: h.aula,
         materia: m.materia || m.NombreAsignatura || m["Nombre de la asignatura"],
         profesor: profesor,
-        grupo: `G${m.grupo || m.Grupo}`
+       grupo: `G${m.grupo || m.Grupo}`
       });
     });
 
@@ -428,20 +439,6 @@ const calendarioProfesores = useMemo(() => {
 
   return map;
 }, [datos]);
-
-
-//funcion para filtro de profesores por nombre
-const profesoresFiltrados = useMemo(() => {
-  if (!filtroProfesor) return calendarioProfesores;
-
-  const filtro = filtroProfesor.toLowerCase();
-
-  return Object.fromEntries(
-    Object.entries(calendarioProfesores).filter(([prof]) =>
-      prof.toLowerCase().includes(filtro)
-    )
-  );
-}, [calendarioProfesores, filtroProfesor]);
 
 
   const calendarioGrupos = useMemo(() => {
@@ -477,164 +474,77 @@ const profesoresFiltrados = useMemo(() => {
   /* =========================
      DESCARGA PDF
   ==========================*/
-const exportPDF = (titulo, idElemento, grupo, semestre) => {
-  const input = document.getElementById(idElemento);
-  if (!input) return;
+const exportExcelHorario = (nombreArchivo, datos) => {
 
-  input.classList.add('exportando-pdf');
+  if (!datos || datos.length === 0) return;
 
-  const botones = input.querySelectorAll('.no-pdf');
-  botones.forEach(btn => btn.style.display = 'none');
+  const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
-  html2canvas(input, {
-    scale: 3,
-    useCORS: true,
-    backgroundColor: "#ffffff"
-  }).then((canvas) => {
+  const data = datos.map(m => {
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('landscape', 'pt', 'a4');
+    const diasMap = {
+      Lunes: "",
+      Martes: "",
+      Miércoles: "",
+      Jueves: "",
+      Viernes: ""
+    };
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    let totalHoras = 0;
 
-    /* ===============================
-       FONDO GENERAL
-    =============================== */
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    (m.AulaAsignada || []).forEach(b => {
 
-    /* ===============================
-       HEADER SUPERIOR
-    =============================== */
-    pdf.setFillColor(86, 7, 12);
-    pdf.rect(0, 0, pageWidth, 60, 'F');
+      const dia = capitalizarDia(b.dia);
 
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(24);
-    pdf.text('UNIVERSIDAD AUTONOMA DEL ESTADO DE HIDALGO ', pageWidth / 2, 38, { align: 'center' });
+      const bloque = `${formatHora(b.inicio)}-${formatHora(b.fin)}`;
 
-    /* ===============================
-       CAJA DE DATOS
-    =============================== */
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6, 'F');
+      // 🔥 acumulamos horas
+      totalHoras += (b.fin - b.inicio);
 
-    pdf.setDrawColor(220);
-    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6);
+      if (diasMap[dia]) {
+        diasMap[dia] += ` | ${bloque}`;
+      } else {
+        diasMap[dia] = bloque;
+      }
 
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(13);
-    pdf.setFont('helvetica', 'bold');
+    });
 
-    pdf.text(`Grupo: ${grupo}`, 60, 100);
-    pdf.text(`Semestre: ${semestre}`, pageWidth - 180, 100);
+    return {
+      "Asignatura": m.NombreAsignatura,
+      "Profesor": m.NombreProfesor,
+      "Grupo": m.Grupo,
+      "Semestre": m.Semestre,
+      "Horas": totalHoras,
+      "Lunes": diasMap["Lunes"],
+      "Martes": diasMap["Martes"],
+      "Miércoles": diasMap["Miércoles"],
+      "Jueves": diasMap["Jueves"],
+      "Viernes": diasMap["Viernes"]
+    };
 
-    /* ===============================
-       LOGO DE FONDO (MARCA DE AGUA)
-    =============================== */
-    const fondoWidth = 260;
-    const fondoHeight = 320;
-
-    const fondoX = (pageWidth - fondoWidth) / 2;
-    const fondoY = 150;
-
-    pdf.addImage(
-      logoFondo,
-      'PNG',
-      fondoX,
-      fondoY,
-      fondoWidth,
-      fondoHeight,
-      undefined,
-      'FAST'
-    );
-
-    /* ===============================
-       IMAGEN HORARIO
-    =============================== */
-    const maxWidth = pageWidth - 35;
-    const maxHeight = pageHeight - 180;
-
-    const scale = Math.min(
-      (maxWidth / canvas.width) * 0.965,
-      (maxHeight / canvas.height) * 0.965
-    );
-
-    const imgWidth = canvas.width * scale;
-    const imgHeight = canvas.height * scale;
-
-    const x = (pageWidth - imgWidth) / 2 - 15;
-    const y = 102;
-
-    pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-
-    /* ===============================
-       LÍNEA DECORATIVA ABAJO
-    =============================== */
-    pdf.setDrawColor(210);
-    pdf.setLineWidth(0.5);
-    pdf.line(50, pageHeight - 70, pageWidth - 50, pageHeight - 70);
-
-    /* ===============================
-       FIRMA
-    =============================== */
-    const firmaX = 100;
-    const firmaY = pageHeight - 45;
-
-    pdf.setDrawColor(60, 60, 60);
-    pdf.setLineWidth(1.4);
-    pdf.line(firmaX, firmaY, firmaX + 260, firmaY);
-
-    pdf.setFontSize(10);
-    pdf.setTextColor(60);
-    pdf.text('Nombre y firma', firmaX + 70, firmaY + 15);
-
-    /* ===============================
-       FECHA
-    =============================== */
-    pdf.setFontSize(10);
-    pdf.text(
-      `Generado el ${new Date().toLocaleDateString()}`,
-      pageWidth - 50,
-      pageHeight - 25,
-      { align: 'right' }
-    );
-
-    /* ===============================
-       PIE DE DOCUMENTO
-    =============================== */
-    pdf.setFontSize(9);
-    pdf.setTextColor(120);
-    pdf.text(
-      'Sistema de generación automática de horarios',
-      pageWidth / 2,
-      pageHeight - 25,
-      { align: 'center' }
-    );
-
-    pdf.save(`${titulo}.pdf`);
-
-    botones.forEach(btn => btn.style.display = 'inline-block');
-
-    input.classList.remove('exportando-pdf');
   });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Horario");
+
+  XLSX.writeFile(workbook, `${nombreArchivo}.xlsx`);
 };
 
   // Descargar todos los PDFs de profesores
-  const exportAllProfesores = () => {
-    Object.entries(calendarioProfesores).forEach(([p, _]) => {
-      exportPDF(`Profesor-${p.replace(/\s+/g,'-')}`, `profesor-${p.replace(/\s+/g,'-')}`);
-    });
-  };
+ const exportAllProfesores = () => {
+  Object.entries(calendarioProfesores).forEach(([p, bloques]) => {
+    exportExcel(`Profesor-${p.replace(/\s+/g,'-')}`, bloques);
+  });
+};
 
   // Descargar todos los PDFs de grupos
-  const exportAllGrupos = () => {
-    Object.entries(calendarioGrupos).forEach(([g, _]) => {
-      exportPDF(`Grupo-${g.replace(/\s+/g,'-')}`, `grupo-${g.replace(/\s+/g,'-')}`);
-    });
-  };
+const exportAllGrupos = () => {
+  Object.entries(calendarioGrupos).forEach(([g, bloques]) => {
+    exportExcel(`Grupo-${g.replace(/\s+/g,'-')}`, bloques);
+  });
+};
 
   /* =========================
      COMPONENTE CALENDARIO
@@ -686,11 +596,10 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
         })}
       </div>
 
-      <button
-  className="no-pdf"
-  onClick={() => exportPDF(titulo, id, grupo, semestre)}
+    <button
+  onClick={() => exportExcel(titulo, bloques)}
 >
-  Descargar PDF
+  Descargar Excel
 </button>
 
     </div>
@@ -716,15 +625,17 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
 
       {datos.length > 0 && (
   <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-    <button onClick={asignarAulas}>Asignar aulas (local)</button>
+ <button onClick={asignarAulas}>Asignar aulas (local)</button>
 
-    {/* 🔥 NUEVO BOTÓN */}
-    <button onClick={generarConORTools}>
-      Generar horarios con OR-Tools
-    </button>
+<button onClick={generarConORTools}>
+  Generar horarios con OR-Tools
+</button>
+
+<button onClick={() => exportExcelHorario("Horario-General", datos)}>
+  Descargar Excel (Horario)
+</button>
 
     <button onClick={() => setVista("tabla")}>Tabla</button>
-    <button onClick={() => setVista("horario")}>Horario general</button>
     <button onClick={() => setVista("profesores")}>Profesores</button>
     <button onClick={() => setVista("grupos")}>Grupos</button>
   </div>
@@ -842,59 +753,21 @@ const exportPDF = (titulo, idElemento, grupo, semestre) => {
   />
 )}
 
-
-      {vista === "horario" &&
-  <Calendario
-    id="horario-general"
-    titulo="Horario General"
-    bloques={datos.flatMap(m =>
-      (m.AulaAsignada || []).map(h => ({
-        ...h,
-        materia: m.NombreAsignatura,
-        profesor: m.NombreProfesor
-      }))
-    )}
-  />
-}
-
       {vista === "profesores" && (
-  <>
-    <button onClick={exportAllProfesores}>
-      Descargar todos PDFs Profesores
-    </button>
-
-    {/* 🔍 BUSCADOR */}
-    <input
-      type="text"
-      placeholder="Buscar profesor..."
-      value={filtroProfesor}
-      onChange={(e) => setFiltroProfesor(e.target.value)}
-      style={{
-        margin: "10px 0",
-        padding: "8px 12px",
-        width: "100%",
-        maxWidth: 400,
-        borderRadius: 8,
-        border: "1px solid #ccc"
-      }}
-    />
-
-    {/* RESULTADOS */}
-    {Object.entries(profesoresFiltrados).map(([p, b]) => (
-      <Calendario
-        key={p}
-        id={`profesor-${p.replace(/\s+/g, '-')}`}
-        titulo={`Profesor: ${p}`}
-        bloques={b}
-      />
-    ))}
-  </>
-)}
+        <>
+          {Object.entries(calendarioProfesores).map(([p, b]) =>
+            <Calendario
+              key={p}
+              id={`profesor-${p.replace(/\s+/g, '-')}`}
+              titulo={`Profesor: ${p}`}
+              bloques={b}
+            />
+          )}
+        </>
+      )}
 
       {vista === "grupos" && (
         <>
-
-          <button onClick={exportAllGrupos} >Descargar todos PDFs Grupos</button>
           {Object.entries(calendarioGrupos).map(([g, b]) => {
   const match = g.match(/(.+)- Sem\s*(\d+)\s*Grupo\s*(.+)/);
 
