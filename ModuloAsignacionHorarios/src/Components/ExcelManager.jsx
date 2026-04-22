@@ -88,8 +88,7 @@ const ExcelManager = () => {
   const dias = {
     lunes: "Lunes",
     martes: "Martes",
-    miercoles: "Miércoles",
-    miércoles: "Miércoles",
+    miercoles: "Miercoles",
     jueves: "Jueves",
     viernes: "Viernes"
   };
@@ -596,11 +595,7 @@ const exportAllGrupos = () => {
         })}
       </div>
 
-    <button
-  onClick={() => exportExcel(titulo, bloques)}
->
-  Descargar Excel
-</button>
+    
 
     </div>
   );
@@ -625,7 +620,7 @@ const exportAllGrupos = () => {
 
       {datos.length > 0 && (
   <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
- <button onClick={asignarAulas}>Asignar aulas (local)</button>
+
 
 <button onClick={generarConORTools}>
   Generar horarios con OR-Tools
