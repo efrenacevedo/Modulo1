@@ -4,26 +4,13 @@ import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ModalAlert from "./Generic/ModalAlert"; 
-import logoFondo from '../assets/logoFondo.png';
 
 
 /* =========================
    CONSTANTES
 =========================*/
 const DIAS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
-const AULAS_ESCUELA = [
-  "A-Lab Químico 1",
-  "A-Lab Químico 2",
-
-  "B-Sala Cómputo 1",
-  "B-Sala Cómputo 2",
-  "B-Sala Cómputo 3",
-  "B-Laboratorio 1",
-
-  ...Array.from({ length: 12 }, (_, i) => `C-Aula ${i + 1}`),
-  ...Array.from({ length: 12 }, (_, i) => `D-Aula ${i + 1}`),
-  ...Array.from({ length: 12 }, (_, i) => `E-Aula ${i + 1}`)
-];
+const AULAS = Array.from({ length: 10 }, (_, i) => `Aula ${i + 1}`);
 
 const DIA_COLOR = {
   Lunes: "#3b82f6",
@@ -95,8 +82,7 @@ const ExcelManager = () => {
   };
 
   return dias[dia.toLowerCase()] || dia;
-  };
-}
+};
   // =========================
 // OR-TOOLS (BACKEND)
 // =========================
@@ -136,19 +122,39 @@ const generarConORTools = async () => {
       body: JSON.stringify(dataTransform)
     });
 
-    const horarios = await resHorarios.json();
+    console.log('resHorarios status', resHorarios.status, 'ok=', resHorarios.ok);
+
+    // Leer cuerpo crudo para mejores mensajes de depuración
+    const raw = await resHorarios.text();
+    console.log('resHorarios raw text:', raw);
+
+    let horarios = null;
+    try {
+      horarios = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.warn('No se pudo parsear JSON directamente:', e);
+      try {
+        horarios = await resHorarios.json();
+      } catch (e2) {
+        console.error('Error al parsear respuesta como JSON:', e2);
+        horarios = null;
+      }
+    }
 
     console.log("Respuesta OR-Tools v2:", horarios);
 
-    if (!Array.isArray(horarios)) {
-      setAlertMessage("Error en la respuesta del servidor");
+    if (!Array.isArray(horarios) || horarios.length === 0) {
+      setAlertMessage(horarios === null
+        ? 'Error: respuesta inválida del servidor (no JSON)'
+        : 'No se generaron horarios (respuesta vacía)');
       setAlertType("error");
       setOpenAlert(true);
+      // No sobreescribimos `datos` cuando la respuesta está vacía
       return;
     }
 
-   const adaptado = adaptarDatos(horarios);
-setDatos(adaptado);
+    const adaptado = adaptarDatos(horarios);
+    setDatos(adaptado);
 
     setAlertMessage("Horarios generados correctamente (v2)");
     setAlertType("success");
@@ -215,17 +221,6 @@ const procesarExcel = (filas) => {
       horasRestantes -= bloque;
     }
 
-
-    return {
-  Semestre: semestre,
-  Grupo: grupo,
-  NombreAsignatura: fila["Nombre de la asignatura"] || "",
-  NombreProfesor: fila["Nombre del profesor"] || "",
-  Turno: fila["Turno"] || "",
-  PE: fila["PE"] || "BG",
-  Horario: bloques
-};
-
     bloques.forEach((bloque, i) => {
 
       const dia = dias[(indiceDia + i) % dias.length];
@@ -245,7 +240,6 @@ const procesarExcel = (filas) => {
     });
 
     indiceDia++;
-
 
   });
 
@@ -279,96 +273,72 @@ const handleFileUpload = (e) => {
    ASIGNAR AULAS (CORREGIDO POR GRUPO Y SEMESTRE)
 =========================*/
 const asignarAulas = () => {
-  if (datos.length === 0) return;
+  if (datos.length === 0) {
+    setAlertMessage("Primero debes cargar un archivo Excel");
+    setAlertType("error");
+    setOpenAlert(true);
+    return;
+  }
 
-  const edificio = {};
+  try {
+    /*
+      Estructura:
+      edificio[semestre][grupo][dia][aula] = [{inicio, fin}]
+    */
+    const edificio = {};
 
-  const resultado = datos.map(materia => {
-    const semestre = materia.Semestre;
-    const grupo = materia.Grupo;
-    const nombre = materia.NombreAsignatura.toLowerCase();
+    const resultado = datos.map(materia => {
+      const semestre = materia.Semestre;
+      const grupo = materia.Grupo;
 
-    if (!edificio[semestre]) edificio[semestre] = {};
-    if (!edificio[semestre][grupo]) {
-      edificio[semestre][grupo] = {};
-      DIAS.forEach(d => {
-        edificio[semestre][grupo][d] = {};
+      // Crear estructura por semestre
+      if (!edificio[semestre]) edificio[semestre] = {};
+
+      // Crear estructura por grupo
+      if (!edificio[semestre][grupo]) {
+        edificio[semestre][grupo] = {};
+        DIAS.forEach(d => {
+          edificio[semestre][grupo][d] = {};
+        });
+      }
+
+      const asignaciones = [];
+
+      materia.Horario.forEach(h => {
+        for (let aula of AULAS) {
+          if (!edificio[semestre][grupo][h.dia][aula]) {
+            edificio[semestre][grupo][h.dia][aula] = [];
+          }
+
+          const choque = edificio[semestre][grupo][h.dia][aula].some(b =>
+            !(h.fin <= b.inicio || h.inicio >= b.fin)
+          );
+
+          if (!choque) {
+            edificio[semestre][grupo][h.dia][aula].push(h);
+            asignaciones.push({ ...h, aula });
+            break;
+          }
+        }
       });
-    }
 
-    const asignaciones = [];
-
-    materia.Horario.forEach(h => {
-
-      let aulasDisponibles = [];
-
-      if (
-        nombre.includes("comput") ||
-        nombre.includes("digital") ||
-        nombre.includes("inform")
-      ) {
-        aulasDisponibles = [
-          "B-Sala Cómputo 1",
-          "B-Sala Cómputo 2",
-          "B-Sala Cómputo 3"
-        ];
-      }
-
-      else if (
-        nombre.includes("quim")
-      ) {
-        aulasDisponibles = [
-          "A-Lab Químico 1",
-          "A-Lab Químico 2"
-        ];
-      }
-
-      else if (
-        nombre.includes("laboratorio")
-      ) {
-        aulasDisponibles = [
-          "B-Laboratorio 1"
-        ];
-      }
-
-      else {
-        aulasDisponibles = [
-          ...Array.from({ length: 12 }, (_, i) => `C-Aula ${i + 1}`),
-          ...Array.from({ length: 12 }, (_, i) => `D-Aula ${i + 1}`),
-          ...Array.from({ length: 12 }, (_, i) => `E-Aula ${i + 1}`)
-        ];
-      }
-
-      for (let aula of aulasDisponibles) {
-        if (!edificio[semestre][grupo][h.dia][aula]) {
-          edificio[semestre][grupo][h.dia][aula] = [];
-        }
-
-        const choque = edificio[semestre][grupo][h.dia][aula].some(b =>
-          !(h.fin <= b.inicio || h.inicio >= b.fin)
-        );
-
-        if (!choque) {
-          edificio[semestre][grupo][h.dia][aula].push(h);
-
-          asignaciones.push({
-            ...h,
-            aula
-          });
-
-          break;
-        }
-      }
+      return { ...materia, AulaAsignada: asignaciones };
     });
 
-    return {
-      ...materia,
-      AulaAsignada: asignaciones
-    };
-  });
+    setDatos(resultado);
 
-  setDatos(resultado);
+    setAlertMessage("Aulas asignadas correctamente por grupo y semestre");
+    setAlertType("success");
+    setOpenAlert(true);
+
+  } catch (e) {
+    console.error(e);
+    setAlertMessage("Ocurrió un error al asignar las aulas");
+    setAlertType("error");
+    setOpenAlert(true);
+  }
 };
+
 
   /* =========================
      ORDENAMIENTO
@@ -428,32 +398,9 @@ const asignarAulas = () => {
      CALENDARIOS
   ==========================*/
   const calendarioProfesores = useMemo(() => {
-
-    const map = {};
-    datos.forEach(m => {
-      (m.AulaAsignada || []).forEach(h => {
-        const prof = m["Nombre del profesor"];
-        if (!map[prof]) map[prof] = [];
-        map[prof].push({
-          ...h,
-          materia: m["Nombre de la asignatura"],
-          grupo: `${m.PE} - Sem ${m.Semestre} G${m.Grupo}`
-        });
-      });
-    });
-    return map;
-  }, [datos]);
-
-  const calendarioGrupos = useMemo(() => {
   const map = {};
 
   datos.forEach(m => {
-    const key = `${m.PE} - Sem ${m.Semestre} Grupo ${m.Grupo}`;
-
-  const map = {};
-
-  datos.forEach(m => {
-
 
     const profesor = m.profesor || m.NombreProfesor || m["Nombre del profesor"] || "Sin profesor";
 
@@ -464,21 +411,10 @@ const asignarAulas = () => {
         dia: h.dia,
         inicio: h.inicio,
         fin: h.fin,
-
-        aulaTexto: h.aula
-          ? h.aula.includes("-")
-            ? `Edificio ${h.aula.split("-")[0]} ${h.aula.split("-")[1]}`
-            : `Edificio C ${h.aula}`
-          : "Sin aula",
-        materia: m.NombreAsignatura || "",
-        profesor: m.NombreProfesor || "",
-        semestre: m.Semestre,
-        grupo: m.Grupo,
         aula: h.aula,
         materia: m.materia || m.NombreAsignatura || m["Nombre de la asignatura"],
         profesor: profesor,
        grupo: `G${m.grupo || m.Grupo}`
-
       });
     });
 
@@ -486,11 +422,6 @@ const asignarAulas = () => {
 
   return map;
 }, [datos]);
-});
-
- const exportPDF = (titulo, idElemento, grupo, semestre) => {
-  const input = document.getElementById(idElemento);
-  if (!input) return;
 
 
   const calendarioGrupos = useMemo(() => {
@@ -521,7 +452,7 @@ const asignarAulas = () => {
 
   return map;
 }, [datos]);
- }
+
 
   /* =========================
      DESCARGA PDF
@@ -530,19 +461,9 @@ const exportExcelHorario = (nombreArchivo, datos) => {
 
   if (!datos || datos.length === 0) return;
 
-  const botones = input.querySelectorAll('.no-pdf');
-  botones.forEach(btn => btn.style.display = 'none');
-
-  html2canvas(input, {
-    scale: 3,
-    useCORS: true,
-    backgroundColor: "#ffffff"
-  }).then((canvas) => {
-
   const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
   const data = datos.map(m => {
-
 
     const diasMap = {
       Lunes: "",
@@ -553,129 +474,6 @@ const exportExcelHorario = (nombreArchivo, datos) => {
     };
 
     let totalHoras = 0;
-
-
-    /* ===============================
-       FONDO GENERAL
-    =============================== */
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-
-    /* ===============================
-       HEADER SUPERIOR
-    =============================== */
-    pdf.setFillColor(86, 7, 12);
-    pdf.rect(0, 0, pageWidth, 60, 'F');
-
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(24);
-    pdf.text('UNIVERSIDAD AUTONOMA DEL ESTADO DE HIDALGO ', pageWidth / 2, 38, { align: 'center' });
-
-    /* ===============================
-       CAJA DE DATOS
-    =============================== */
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6, 'F');
-
-    pdf.setDrawColor(220);
-    pdf.roundedRect(40, 75, pageWidth - 80, 40, 6, 6);
-
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(13);
-    pdf.setFont('helvetica', 'bold');
-
-    pdf.text(`Grupo: ${grupo}`, 60, 100);
-    pdf.text(`Semestre: ${semestre}`, pageWidth - 180, 100);
-
-    /* ===============================
-       LOGO DE FONDO (MARCA DE AGUA)
-    =============================== */
-    const fondoWidth = 260;
-    const fondoHeight = 320;
-
-    const fondoX = (pageWidth - fondoWidth) / 2;
-    const fondoY = 150;
-
-    pdf.addImage(
-      logoFondo,
-      'PNG',
-      fondoX,
-      fondoY,
-      fondoWidth,
-      fondoHeight,
-      undefined,
-      'FAST'
-    );
-
-    /* ===============================
-       IMAGEN HORARIO
-    =============================== */
-    const maxWidth = pageWidth - 35;
-    const maxHeight = pageHeight - 180;
-
-    const scale = Math.min(
-      (maxWidth / canvas.width) * 0.965,
-      (maxHeight / canvas.height) * 0.965
-    );
-
-    const imgWidth = canvas.width * scale;
-    const imgHeight = canvas.height * scale;
-
-    const x = (pageWidth - imgWidth) / 2 - 15;
-    const y = 102;
-
-    pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-
-    /* ===============================
-       LÍNEA DECORATIVA ABAJO
-    =============================== */
-    pdf.setDrawColor(210);
-    pdf.setLineWidth(0.5);
-    pdf.line(50, pageHeight - 70, pageWidth - 50, pageHeight - 70);
-
-    /* ===============================
-       FIRMA
-    =============================== */
-    const firmaX = 100;
-    const firmaY = pageHeight - 45;
-
-    pdf.setDrawColor(60, 60, 60);
-    pdf.setLineWidth(1.4);
-    pdf.line(firmaX, firmaY, firmaX + 260, firmaY);
-
-    pdf.setFontSize(10);
-    pdf.setTextColor(60);
-    pdf.text('Nombre y firma', firmaX + 70, firmaY + 15);
-
-    /* ===============================
-       FECHA
-    =============================== */
-    pdf.setFontSize(10);
-    pdf.text(
-      `Generado el ${new Date().toLocaleDateString()}`,
-      pageWidth - 50,
-      pageHeight - 25,
-      { align: 'right' }
-    );
-
-    /* ===============================
-       PIE DE DOCUMENTO
-    =============================== */
-    pdf.setFontSize(9);
-    pdf.setTextColor(120);
-    pdf.text(
-      'Sistema de generación automática de horarios',
-      pageWidth / 2,
-      pageHeight - 25,
-      { align: 'center' }
-    );
-
-    pdf.save(`${titulo}.pdf`);
-
-    botones.forEach(btn => btn.style.display = 'inline-block');
-
-    input.classList.remove('exportando-pdf');
 
     (m.AulaAsignada || []).forEach(b => {
 
@@ -707,7 +505,6 @@ const exportExcelHorario = (nombreArchivo, datos) => {
       "Viernes": diasMap["Viernes"]
     };
 
-
   });
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -716,7 +513,8 @@ const exportExcelHorario = (nombreArchivo, datos) => {
   XLSX.utils.book_append_sheet(workbook, worksheet, "Horario");
 
   XLSX.writeFile(workbook, `${nombreArchivo}.xlsx`);
-});
+};
+
   // Descargar todos los PDFs de profesores
  const exportAllProfesores = () => {
   Object.entries(calendarioProfesores).forEach(([p, bloques]) => {
@@ -760,19 +558,14 @@ const exportAllGrupos = () => {
                   <div key={i} style={{
                     background: colorBloque,
                     color: 'white',
-                    borderRadius: 10,
-                    padding: 10,
-                    marginTop: 8,
-                    minHeight: 110,
-                    wordBreak: 'break-word',
-                    whiteSpace: 'normal',
-                    lineHeight: 1.4,
-                    fontSize: 14
+                    borderRadius: 8,
+                    padding: 8,
+                    marginTop: 6
                   }}>
                     <strong>{formatHora(b.inicio)} – {formatHora(b.fin)}</strong><br />
-                      {b.materia}<br />
-                      {b.aulaTexto}<br />
-                      {b.profesor || b.grupo}
+                    {b.materia}<br />
+                    {b.aula}<br />
+                    {b.profesor || b.grupo}
                   </div>
                 );
               })}
@@ -954,17 +747,16 @@ const exportAllGrupos = () => {
       {vista === "grupos" && (
         <>
           {Object.entries(calendarioGrupos).map(([g, b]) => {
-  const match = g.match(/(.+)- Sem\s*(\d+)\s*Grupo\s*(.+)/);
+  const match = g.match(/Sem\s*(\d+)\s*Grupo\s*(.+)/);
 
-const periodo = match ? match[1].trim() : '';
-const semestre = match ? match[2] : '';
-const grupo = match ? match[3] : '';
+  const semestre = match ? match[1] : '';
+  const grupo = match ? match[2] : '';
 
   return (
     <Calendario
       key={g}
       id={`grupo-${g.replace(/\s+/g, '-')}`}
-      titulo={`${periodo} - Grupo ${grupo} - Semestre ${semestre}`}
+      titulo={`Grupo ${grupo} - Semestre ${semestre}`}
       bloques={b}
       grupo={grupo}
       semestre={semestre}
@@ -1001,11 +793,10 @@ const grupo = match ? match[3] : '';
 
   /* Calendario */
   .calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: start;
-}
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: start;
+  }
 
   /* =======================
      TABLET (≤ 1024px)
