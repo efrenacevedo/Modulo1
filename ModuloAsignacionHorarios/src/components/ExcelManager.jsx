@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { Upload, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import ModalAlert from "./Generic/ModalAlert"; 
+import ModalAlert from "./generic/ModalAlert"; 
 
 
 /* =========================
