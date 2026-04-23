@@ -1,0 +1,202 @@
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Nunito:wght@300;600&display=swap");
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Nunito", sans-serif;
+}
+
+body {
+  background: #800101;
+  background-image: radial-gradient(
+      circle at 20% 100%,
+      rgba(184, 184, 184, 0.1) 0%,
+      rgba(184, 184, 184, 0.1) 33%,
+      rgba(96, 96, 96, 0.1) 33%,
+      rgba(96, 96, 96, 0.1) 66%,
+      rgba(7, 7, 7, 0.1) 66%,
+      rgba(7, 7, 7, 0.1) 99%
+    ),
+    linear-gradient(40deg, #500b0b, #890303, #800101, #461e1e);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* =====================
+   LAYOUT PRINCIPAL
+===================== */
+section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 60px;
+  min-height: 100vh;
+  padding: 20px 60px;
+  flex-wrap: wrap;
+}
+
+/* =====================
+   CONTENT
+===================== */
+.content {
+  flex: 1 1 480px;
+  max-width: 800px;
+}
+
+.content h1 {
+  font-family: "Comfortaa", sans-serif;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 1px;
+  margin-bottom: 36px;
+  color: #fff;
+}
+
+.content p {
+  font-size: clamp(0.9rem, 3vw, 1.25rem);
+  font-weight: 300;
+  line-height: 1.5;
+  margin-bottom: 30px;
+  color: #fff;
+}
+
+.content button {
+  background: #eaeaea;
+  color: #202134;
+  font-size: clamp(0.9rem, 4vw, 1rem);
+  font-weight: 600;
+  border: 0;
+  padding: 8px 18px;
+  border-radius: 7px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.content button:hover {
+  transform: scale(0.97);
+  background-color: #6f7aa6;
+  color: #eaeaea;
+}
+
+/* =====================
+   SWIPER
+===================== */
+.swiper {
+  flex: 0 0 auto;
+  width: 400px;
+  height: 490px;
+}
+
+.swiper-slide {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.swiper-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 20px;
+}
+
+/* =====================
+   OVERLAYS (UNIFICADO Y FORMAL)
+===================== */
+.cost {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(6px);
+  border-radius: 30px;
+  padding: 6px 12px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.dark-text {
+  color: #202134;
+}
+
+/* BASE PARA WEB + MÓVIL */
+.overlay {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  min-height: 90px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: 0 0 20px 20px;
+}
+
+.overlay h1 {
+  font-family: "Comfortaa", sans-serif;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.overlay p {
+  font-size: clamp(0.75rem, 1vw, 0.9rem);
+  font-weight: 300;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+
+/* =====================
+   RESPONSIVE
+===================== */
+@media (max-width: 1050px) {
+  .swiper {
+    width: 350px;
+    height: 450px;
+  }
+}
+
+@media (max-width: 900px) {
+  section {
+    flex-direction: column;
+    text-align: center;
+    padding: 60px 30px;
+  }
+
+  .content {
+    max-width: 100%;
+  }
+
+  .swiper {
+    order: -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .overlay {
+    min-height: 70px;
+    padding: 8px 12px;
+  }
+
+  .swiper {
+    width: 300px;
+    height: 400px;
+  }
+
+  .content h1 {
+    font-size: 1.6rem;
+  }
+}

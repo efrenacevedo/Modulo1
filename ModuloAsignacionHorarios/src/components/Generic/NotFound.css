@@ -1,0 +1,96 @@
+@import url("https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&display=swap");
+
+
+#root {
+  width: 100%;
+  height: 100%;
+  
+}
+
+/* CONTENEDOR PRINCIPAL */
+.page_404 {
+  min-height: 100vh;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Arvo", serif;
+  padding: 40px 20px;
+  background: #ffffff;
+
+}
+
+/* CONTENEDOR */
+.container_404 {
+  text-align: center;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* GIF */
+.four_zero_four_bg {
+  background-image: url("https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif");
+  height: 400px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.four_zero_four_bg h1 {
+  font-size: 96px;
+  font-weight: 700;
+  color: #323232;
+}
+
+/* TEXTO */
+.content_box_404 {
+  margin-top: -40px;
+}
+
+.content_box_404 h3 {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color:#2f2f2f;
+}
+
+.content_box_404 p {
+  font-size: 16px;
+  color: #555;
+}
+
+/* BOTÓN */
+.link_404 {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 24px;
+  background: #39ac31;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.link_404:hover {
+  background: #2e8b27;
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+@media (max-width: 480px) {
+  .four_zero_four_bg {
+    height: 280px;
+  }
+
+  .four_zero_four_bg h1 {
+    font-size: 72px;
+  }
+
+  .content_box_404 h3 {
+    font-size: 22px;
+  }
+}
