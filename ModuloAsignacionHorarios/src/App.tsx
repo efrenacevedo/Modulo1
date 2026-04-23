@@ -1,14 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { useState } from "react"
 import type { ReactNode } from "react"
+
 // @ts-ignore
 import ExcelManager from "./Components/ExcelManager.jsx"
 // @ts-ignore
 import Home from "./Components/Generic/Home.jsx"
 // @ts-ignore
 import Login from "./Components/Auth/Login.jsx"
-// @ts-ignore
-import NotFound from "./Components/Generic/NotFound"
 // @ts-ignore
 import MainLayout from "./Components/Generic/MainLayout"
 
@@ -42,13 +41,12 @@ function App() {
           />
 
           <Route
-          path="/cargadatos"
-          element={<ExcelManager />}
+            path="/cargadatos"
+            element={<ExcelManager />}
           />
-
         </Route>
 
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Home />} />
       </Routes>
     </Router>
   )
