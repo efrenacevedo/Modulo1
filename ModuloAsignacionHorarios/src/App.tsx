@@ -4,13 +4,13 @@ import type { ReactNode } from "react"
 // @ts-ignore
 import ExcelManager from "./components/ExcelManager.jsx"
 // @ts-ignore
-import Home from "./components/Generic/Home.jsx"
+import Home from "./components/generic/Home.jsx"
 // @ts-ignore
-import Login from "./components/Auth/Login.jsx"
+import Login from "./components/auth/Login.jsx"
 // @ts-ignore
-import NotFound from "./components/Generic/NotFound"
+import NotFound from "./components/generic/NotFound.jsx"
 // @ts-ignore
-import MainLayout from "./components/Generic/MainLayout"
+import MainLayout from "./components/generic/MainLayout.js"
 
 import "./App.css"
 
