@@ -8,7 +8,7 @@ import Home from "./components/generic/Home.jsx"
 // @ts-ignore
 import Login from "./components/auth/Login.jsx"
 // @ts-ignore
-import NotFound from "./components/generic/NotFound.jsx"
+import NotFound from "./components/generic/Notfound.jsx"
 // @ts-ignore
 import MainLayout from "./components/generic/MainLayout.js"
 
