@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useState } from "react"
 import type { ReactNode } from "react"
 // @ts-ignore
-import ExcelManager from "./components/ExcelManager.jsx"
+import ExcelManager from "./components/ExcelManager/ExcelManager.jsx"
 // @ts-ignore
 import Home from "./components/Generic/Home.jsx"
 // @ts-ignore
