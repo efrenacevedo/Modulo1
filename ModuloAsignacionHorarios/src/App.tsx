@@ -2,15 +2,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useState } from "react"
 import type { ReactNode } from "react"
 // @ts-ignore
-import ExcelManager from "./Components/ExcelManager.jsx"
+import ExcelManager from "./components/ExcelManager.jsx"
 // @ts-ignore
-import Home from "./Components/Generic/Home.jsx"
+import Home from "./components/Generic/Home.jsx"
 // @ts-ignore
-import Login from "./Components/Auth/Login.jsx"
+import Login from "./components/Auth/Login.jsx"
 // @ts-ignore
-import NotFound from "./Components/Generic/NotFound"
+import NotFound from "./components/Generic/NotFound"
 // @ts-ignore
-import MainLayout from "./Components/Generic/MainLayout"
+import MainLayout from "./components/Generic/MainLayout"
 
 import "./App.css"
 

@@ -101,7 +101,7 @@ const generarConORTools = async () => {
     console.log("Filas originales:", datos);
     console.log("ANTES DEL FETCH");
     // 🔹 Paso 1: transformar datos
-    const resTransform = await fetch("http://127.0.0.1:8000/transformar-datos", {
+    const resTransform = await fetch("https://backuaehs.vercel.app/transformar-datos/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -114,7 +114,7 @@ const generarConORTools = async () => {
     console.log("Transformado:", dataTransform);
 
     // 🔹 Paso 2: OR-Tools nuevo
-    const resHorarios = await fetch("http://127.0.0.1:8000/generar-horarios-v2", {
+    const resHorarios = await fetch("https://backuaehs.vercel.app/generar-horarios-v2/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
